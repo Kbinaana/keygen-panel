@@ -3,47 +3,103 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KeyGen Panel</title>
+    <title>Secure KeyGen Panel</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🔑 KeyGen Panel</h1>
-            <p>License Key Generator</p>
+            <h1>Secure KeyGen Panel</h1>
+            <p>License Key Generator &amp; Validator</p>
         </div>
 
-        <div class="controls">
-            <div class="control-group">
-                <label for="format">Key Format</label>
-                <select id="format">
-                    <option value="XXXXX-XXXXX-XXXXX-XXXXX">XXXXX-XXXXX-XXXXX-XXXXX</option>
-                    <option value="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX">UUID Style</option>
-                    <option value="XXXXXX-XXXXXX-XXXXXX-XXXXXX-XXXXXX">XXXXXX-XXXXXX-XXXXXX-XXXXXX-XXXXXX</option>
-                    <option value="XXXXXX-XXXXXX-XXXXXX">XXXXXX-XXXXXX-XXXXXX</option>
-                </select>
-            </div>
-
-            <div class="control-group">
-                <label for="count">Number of Keys</label>
-                <input type="number" id="count" min="1" max="100" value="5">
-            </div>
-
-            <div class="control-group">
-                <label for="prefix">Prefix (optional)</label>
-                <input type="text" id="prefix" placeholder="e.g. MOD-">
-            </div>
-
-            <button id="generateBtn">Generate Keys</button>
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="generate">Generate</button>
+            <button class="tab-btn" data-tab="validate">Validate</button>
+            <button class="tab-btn" data-tab="settings">Settings</button>
         </div>
 
-        <div class="output">
-            <div class="output-header">
-                <span id="keyCount">0 keys generated</span>
-                <button id="copyAllBtn" disabled>Copy All</button>
-                <button id="clearBtn">Clear</button>
+        <div id="generateTab" class="tab-content active">
+            <div class="controls">
+                <div class="control-row">
+                    <div class="control-group">
+                        <label for="format">Key Format</label>
+                        <select id="format">
+                            <option value="XXXXX-XXXXX-XXXXX-XXXXX">XXXXX-XXXXX-XXXXX-XXXXX</option>
+                            <option value="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX">UUID Style</option>
+                            <option value="XXXXXX-XXXXXX-XXXXXX-XXXXXX-XXXXXX">Long (5x6)</option>
+                            <option value="XXXXXX-XXXXXX-XXXXXX">Short (3x6)</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label for="count">Count</label>
+                        <input type="number" id="count" min="1" max="500" value="5">
+                    </div>
+                </div>
+                <div class="control-row">
+                    <div class="control-group">
+                        <label for="prefix">Prefix</label>
+                        <input type="text" id="prefix" placeholder="e.g. MOD-">
+                    </div>
+                    <div class="control-group">
+                        <label for="serialStart">Serial # Start</label>
+                        <input type="number" id="serialStart" min="0" value="1">
+                    </div>
+                </div>
+                <div class="control-row">
+                    <div class="control-group">
+                        <label>Expiry</label>
+                        <select id="expiry">
+                            <option value="0">No expiry</option>
+                            <option value="30">30 days</option>
+                            <option value="90">90 days</option>
+                            <option value="180">6 months</option>
+                            <option value="365">1 year</option>
+                        </select>
+                    </div>
+                    <div class="control-group">
+                        <label>HMAC Sign</label>
+                        <label class="toggle">
+                            <input type="checkbox" id="hmacToggle" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+                <button id="generateBtn">Generate Keys</button>
             </div>
-            <textarea id="keyOutput" readonly placeholder="Generated keys will appear here..."></textarea>
+
+            <div class="output">
+                <div class="output-header">
+                    <span id="keyCount">0 keys</span>
+                    <button id="exportBtn" disabled>Export .txt</button>
+                    <button id="copyAllBtn" disabled>Copy All</button>
+                    <button id="clearBtn">Clear</button>
+                </div>
+                <div id="keyList" class="key-list"></div>
+            </div>
+        </div>
+
+        <div id="validateTab" class="tab-content">
+            <div class="controls">
+                <div class="control-group">
+                    <label for="validateInput">Paste Key to Validate</label>
+                    <input type="text" id="validateInput" placeholder="e.g. ABCDE-FGHIJ-KLMNO-PQRST">
+                </div>
+                <button id="validateBtn">Validate Key</button>
+            </div>
+            <div id="validateResult"></div>
+        </div>
+
+        <div id="settingsTab" class="tab-content">
+            <div class="controls">
+                <div class="control-group">
+                    <label for="secretKey">HMAC Secret Key (shared secret)</label>
+                    <input type="text" id="secretKey" placeholder="Enter a secret key...">
+                    <span class="hint">Same secret se sign &amp; validate hoga. Secret change karne se purane keys invalid ho jayenge.</span>
+                </div>
+                <button id="saveSecretBtn">Save Secret</button>
+                <button id="randomSecretBtn">Generate Random Secret</button>
+            </div>
         </div>
     </div>
     <script src="script.js"></script>
