@@ -37,16 +37,32 @@ function randomChar() {
 }
 
 async function hmacSign(data, secret) {
-    const enc = new TextEncoder();
-    const key = await crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-    const sig = await crypto.subtle.sign('HMAC', key, enc.encode(data));
-    const hash = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let shortSig = '';
-    for (let i = 0; i < 4; i++) {
-        shortSig += chars[parseInt(hash.substring(i * 8, i * 8 + 8), 16) % 36];
+    try {
+        const enc = new TextEncoder();
+        const key = await crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+        const sig = await crypto.subtle.sign('HMAC', key, enc.encode(data));
+        const hash = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        let shortSig = '';
+        for (let i = 0; i < 4; i++) {
+            shortSig += chars[parseInt(hash.substring(i * 8, i * 8 + 8), 16) % 36];
+        }
+        return shortSig;
+    } catch (e) {
+        console.warn('HMAC failed, using fallback:', e);
+        let hash = 0;
+        for (let i = 0; i < data.length; i++) {
+            hash = ((hash << 5) - hash) + data.charCodeAt(i);
+            hash = hash & hash;
+        }
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        let sig = '';
+        const h = Math.abs(hash).toString(36).toUpperCase();
+        for (let i = 0; i < 4; i++) {
+            sig += chars[parseInt(h[i] || '0', 36) % 36];
+        }
+        return sig;
     }
-    return shortSig;
 }
 
 async function generateKey(format, prefix, serial, secret, expiryDays) {
@@ -77,36 +93,56 @@ function getKeyStatus(keyObj) {
 // ============ GENERATE TAB ============
 
 async function generateKeys() {
-    const format = document.getElementById('format').value;
-    let count = Math.min(Math.max(parseInt(document.getElementById('count').value) || 1, 1), 500);
-    const prefix = document.getElementById('prefix').value.toUpperCase().trim();
-    const serialStart = parseInt(document.getElementById('serialStart').value) || 0;
-    const expiryDays = parseInt(document.getElementById('expiry').value) || 0;
-    const useHmac = document.getElementById('hmacToggle').checked;
-    const secret = useHmac ? getSecret() : '';
-    const assignUser = document.getElementById('assignUser').value.trim();
+    try {
+        const formatEl = document.getElementById('format');
+        const countEl = document.getElementById('count');
+        const prefixEl = document.getElementById('prefix');
+        const serialEl = document.getElementById('serialStart');
+        const expiryEl = document.getElementById('expiry');
+        const hmacEl = document.getElementById('hmacToggle');
+        const userEl = document.getElementById('assignUser');
 
-    const list = document.getElementById('keyList');
-    list.innerHTML = '';
-    const items = [];
+        if (!formatEl || !countEl) { console.error('Elements not found'); return; }
 
-    for (let i = 0; i < count; i++) {
-        const serial = serialStart > 0 ? serialStart + i : 0;
-        const key = await generateKey(format, prefix, serial, secret, expiryDays);
-        items.push({ key, serial, expiryDays, user: assignUser });
+        const format = formatEl.value;
+        let count = Math.min(Math.max(parseInt(countEl.value) || 1, 1), 500);
+        const prefix = (prefixEl ? prefixEl.value : '').toUpperCase().trim();
+        const serialStart = parseInt(serialEl ? serialEl.value : 0) || 0;
+        const expiryDays = parseInt(expiryEl ? expiryEl.value : 0) || 0;
+        const useHmac = hmacEl ? hmacEl.checked : false;
+        const secret = useHmac ? getSecret() : '';
+        const assignUser = userEl ? userEl.value.trim() : '';
+
+        const list = document.getElementById('keyList');
+        if (!list) return;
+        list.innerHTML = '';
+        const items = [];
+
+        for (let i = 0; i < count; i++) {
+            const serial = serialStart > 0 ? serialStart + i : 0;
+            const key = await generateKey(format, prefix, serial, secret, expiryDays);
+            items.push({ key, serial, expiryDays, user: assignUser });
+        }
+
+        renderGeneratedKeys(items);
+        const countEl2 = document.getElementById('keyCount');
+        if (countEl2) countEl2.textContent = `${items.length} keys`;
+        const saveBtn = document.getElementById('saveKeysBtn');
+        const copyBtn = document.getElementById('copyAllBtn');
+        const exportBtn = document.getElementById('exportBtn');
+        if (saveBtn) saveBtn.disabled = false;
+        if (copyBtn) copyBtn.disabled = false;
+        if (exportBtn) exportBtn.disabled = false;
+        if (saveBtn) saveBtn._items = items;
+    } catch (e) {
+        console.error('generateKeys error:', e);
+        alert('Key generation error: ' + e.message);
     }
-
-    renderGeneratedKeys(items);
-    document.getElementById('keyCount').textContent = `${items.length} keys`;
-    document.getElementById('saveKeysBtn').disabled = false;
-    document.getElementById('copyAllBtn').disabled = false;
-    document.getElementById('exportBtn').disabled = false;
-
-    document.getElementById('saveKeysBtn')._items = items;
 }
 
 function renderGeneratedKeys(items) {
     const list = document.getElementById('keyList');
+    if (!list) return;
     list.innerHTML = '';
     items.forEach(({ key, serial, expiryDays, user }) => {
         const div = document.createElement('div');
@@ -461,7 +497,7 @@ function clearAllKeys() {
 
 // ============ EVENT LISTENERS ============
 
-document.getElementById('generateBtn').addEventListener('click', generateKeys);
+document.getElementById('generateBtn').addEventListener('click', (e) => { generateKeys(); });
 document.getElementById('saveKeysBtn').addEventListener('click', saveGeneratedKeys);
 document.getElementById('copyAllBtn').addEventListener('click', copyAll);
 document.getElementById('exportBtn').addEventListener('click', exportTxt);
@@ -527,8 +563,16 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 
 document.getElementById('secretKey').value = getSecret();
 
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && document.getElementById('generateTab').classList.contains('active')) {
+        const tag = e.target.tagName;
+        if (tag !== 'TEXTAREA' && tag !== 'INPUT') generateKeys();
+    }
+});
+
 // ============ INIT ============
 
 loadDB();
 renderManageTable();
 updateStats();
+generateKeys();
