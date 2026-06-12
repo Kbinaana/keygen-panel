@@ -411,18 +411,24 @@ async function handleApiRequest() {
 
         if (dbKey && status === 'active') {
             dbKey.lastUsedAt = Date.now();
+            dbKey.lastUsedIP = 'api';
             saveDB();
         }
 
+        const isGood = sigValid && status === 'active';
+        const secretKey = getSecret();
+        const authData = "PUBG-" + key + "-" + (dbKey && dbKey.lastUsedAt ? String(dbKey.lastUsedAt) : "0") + "-Vm8Lk7Uj2JmsjCPVPVjrLa7zgfx3uz9E";
+        const token = await hmacSign(authData, secretKey);
+
         const response = {
-            valid: sigValid && status === 'active',
-            signatureValid: sigValid,
-            status: dbKey ? status : 'not_found',
-            key: key,
-            user: dbKey ? (dbKey.user || null) : null,
-            lastUsed: dbKey && dbKey.lastUsedAt ? new Date(dbKey.lastUsedAt).toISOString() : null,
-            expiresAt: dbKey && dbKey.expiresAt ? new Date(dbKey.expiresAt).toISOString() : null,
-            checkedAt: new Date().toISOString()
+            status: isGood,
+            reason: isGood ? "" : (!sigValid ? "Invalid signature" : "Key " + status),
+            data: isGood ? {
+                token: token + key.substr(0,8),
+                rng: Math.floor(Date.now() / 1000),
+                modname: "NEXUS MOD MENU",
+                mod_status: "Connected"
+            } : null
         };
 
         document.body.innerHTML = '<pre style="background:#0a0e14;color:#e2e8f0;padding:2rem;font-family:monospace;font-size:0.9rem">' + JSON.stringify(response, null, 2) + '</pre>';
