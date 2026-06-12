@@ -22,7 +22,15 @@ function saveDB($db) {
 }
 
 function hmacSign($data, $secret) {
-    return substr(strtoupper(preg_replace('/[^A-Z0-9]/', '', hash_hmac('sha256', $data, $secret))), 0, 4);
+    $hash = strtoupper(hash_hmac('sha256', $data, $secret));
+    $chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    $sig = '';
+    for ($i = 0; $i < 4; $i++) {
+        $chunk = substr($hash, $i * 8, 8);
+        $val = hexdec($chunk);
+        $sig .= $chars[$val % 36];
+    }
+    return $sig;
 }
 
 function getKeyStatus($k) {
@@ -34,7 +42,58 @@ function getKeyStatus($k) {
 $key = $_GET['key'] ?? '';
 $action = $_GET['action'] ?? '';
 
-// KEY VALIDATION - triggered if key param is present
+// Handle POST form-encoded (Java GameLoader)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['key'])) {
+    $key = $_POST['key'];
+    $gameName = $_POST['game'] ?? 'pubgm';
+    $uuid = $_POST['serial'] ?? '';
+    $deviceFp = $_POST['fp'] ?? '';
+    $arch = $_POST['arch'] ?? '';
+
+    $db = loadDB();
+    $parts = explode('-', $key);
+    $sig = array_pop($parts);
+    $baseKey = implode('-', $parts);
+    $expectedSig = hmacSign($baseKey, SECRET_KEY);
+    $sigValid = ($sig === $expectedSig);
+
+    $dbKey = null;
+    foreach ($db as $k) {
+        if ($k['key'] === $key) { $dbKey = $k; break; }
+    }
+
+    $status = $dbKey ? getKeyStatus($dbKey) : 'unknown';
+
+    if ($dbKey && $status === 'active') {
+        foreach ($db as &$k) {
+            if ($k['key'] === $key) { $k['lastUsedAt'] = round(microtime(true) * 1000); break; }
+        }
+        saveDB($db);
+    }
+
+    $isGood = $sigValid && $status === 'active';
+    $token = hash_hmac('sha256', $gameName . '-' . $key . '-' . $uuid . '-secret', 'secret');
+
+    $expiry = $dbKey && !empty($dbKey['expiresAt'])
+        ? (string)($dbKey['expiresAt'] / 1000)
+        : (string)(time() + 365 * 86400);
+
+    $response = [
+        'status' => $isGood,
+        'reason' => $isGood ? '' : (!$sigValid ? 'Invalid signature' : 'Key ' . $status),
+        'data' => $isGood ? [
+            'token' => $token,
+            'EXP' => $expiry,
+            'rng' => time()
+        ] : null
+    ];
+
+    header('Content-Type: application/json');
+    echo json_encode($response);
+    exit;
+}
+
+// KEY VALIDATION - triggered if key param is present (GET)
 if (!empty($key)) {
     $format = $_GET['format'] ?? '';
 
