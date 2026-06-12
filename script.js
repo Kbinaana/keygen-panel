@@ -1,23 +1,14 @@
 const SECRET_KEY = 'MyModLoaderSecretKey2024';
-
 let db = [];
 let currentFilter = 'all';
 let editingKeyId = null;
 
-function getSecret() {
-    return localStorage.getItem('keygen_secret') || SECRET_KEY;
-}
-
-function saveSecret(val) {
-    localStorage.setItem('keygen_secret', val);
-}
-
-// ============ DATABASE ============
+function getSecret() { return localStorage.getItem('keygen_secret') || SECRET_KEY; }
+function saveSecret(val) { localStorage.setItem('keygen_secret', val); }
 
 function loadDB() {
-    try {
-        db = JSON.parse(localStorage.getItem('keygen_db')) || [];
-    } catch { db = []; }
+    try { db = JSON.parse(localStorage.getItem('keygen_db')) || []; }
+    catch { db = []; }
 }
 
 function saveDB() {
@@ -29,11 +20,8 @@ function generateId() {
     return Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
 }
 
-// ============ KEY HELPERS ============
-
 function randomChar() {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    return chars[Math.floor(Math.random() * chars.length)];
+    return 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[Math.floor(Math.random() * 36)];
 }
 
 async function hmacSign(data, secret) {
@@ -44,24 +32,13 @@ async function hmacSign(data, secret) {
         const hash = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
         const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
         let shortSig = '';
-        for (let i = 0; i < 4; i++) {
-            shortSig += chars[parseInt(hash.substring(i * 8, i * 8 + 8), 16) % 36];
-        }
+        for (let i = 0; i < 4; i++) shortSig += chars[parseInt(hash.substring(i * 8, i * 8 + 8), 16) % 36];
         return shortSig;
-    } catch (e) {
-        console.warn('HMAC failed, using fallback:', e);
+    } catch {
         let hash = 0;
-        for (let i = 0; i < data.length; i++) {
-            hash = ((hash << 5) - hash) + data.charCodeAt(i);
-            hash = hash & hash;
-        }
+        for (let i = 0; i < data.length; i++) hash = ((hash << 5) - hash) + data.charCodeAt(i);
         const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-        let sig = '';
-        const h = Math.abs(hash).toString(36).toUpperCase();
-        for (let i = 0; i < 4; i++) {
-            sig += chars[parseInt(h[i] || '0', 36) % 36];
-        }
-        return sig;
+        return (Math.abs(hash) % 1679616).toString(36).toUpperCase().padStart(4, '0').split('').map(c => chars[parseInt(c, 36) % 36]).join('');
     }
 }
 
@@ -75,49 +52,37 @@ async function generateKey(format, prefix, serial, secret, expiryDays) {
     return baseKey;
 }
 
-function computeExpiry(days) {
-    if (!days || days <= 0) return null;
-    return Date.now() + days * 86400000;
+function computeExpiry(days) { return days > 0 ? Date.now() + days * 86400000 : null; }
+function isExpired(k) { return k.expiresAt && Date.now() > k.expiresAt; }
+function getKeyStatus(k) { return k.status === 'revoked' ? 'revoked' : isExpired(k) ? 'expired' : 'active'; }
+
+// ===== TOAST =====
+
+function showToast(msg, type) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show ' + (type || 'info');
+    clearTimeout(t._hide);
+    t._hide = setTimeout(() => { t.className = 'toast'; }, 3000);
 }
 
-function isExpired(keyObj) {
-    return keyObj.expiresAt && Date.now() > keyObj.expiresAt;
-}
-
-function getKeyStatus(keyObj) {
-    if (keyObj.status === 'revoked') return 'revoked';
-    if (isExpired(keyObj)) return 'expired';
-    return 'active';
-}
-
-// ============ GENERATE TAB ============
+// ===== GENERATE =====
 
 async function generateKeys() {
     try {
-        const formatEl = document.getElementById('format');
-        const countEl = document.getElementById('count');
-        const prefixEl = document.getElementById('prefix');
-        const serialEl = document.getElementById('serialStart');
-        const expiryEl = document.getElementById('expiry');
-        const hmacEl = document.getElementById('hmacToggle');
-        const userEl = document.getElementById('assignUser');
-
-        if (!formatEl || !countEl) { console.error('Elements not found'); return; }
-
-        const format = formatEl.value;
-        let count = Math.min(Math.max(parseInt(countEl.value) || 1, 1), 500);
-        const prefix = (prefixEl ? prefixEl.value : '').toUpperCase().trim();
-        const serialStart = parseInt(serialEl ? serialEl.value : 0) || 0;
-        const expiryDays = parseInt(expiryEl ? expiryEl.value : 0) || 0;
-        const useHmac = hmacEl ? hmacEl.checked : false;
+        const format = document.getElementById('format').value;
+        let count = Math.min(Math.max(parseInt(document.getElementById('count').value) || 1, 1), 500);
+        const prefix = document.getElementById('prefix').value.toUpperCase().trim();
+        const serialStart = parseInt(document.getElementById('serialStart').value) || 0;
+        const expiryDays = parseInt(document.getElementById('expiry').value) || 0;
+        const useHmac = document.getElementById('hmacToggle').checked;
         const secret = useHmac ? getSecret() : '';
-        const assignUser = userEl ? userEl.value.trim() : '';
+        const assignUser = document.getElementById('assignUser').value.trim();
 
         const list = document.getElementById('keyList');
-        if (!list) return;
-        list.innerHTML = '';
-        const items = [];
+        list.innerHTML = '<div class="key-item" style="color:var(--text-muted);cursor:default;justify-content:center;font-family:var(--font)">Generating keys...</div>';
 
+        const items = [];
         for (let i = 0; i < count; i++) {
             const serial = serialStart > 0 ? serialStart + i : 0;
             const key = await generateKey(format, prefix, serial, secret, expiryDays);
@@ -125,24 +90,20 @@ async function generateKeys() {
         }
 
         renderGeneratedKeys(items);
-        const countEl2 = document.getElementById('keyCount');
-        if (countEl2) countEl2.textContent = `${items.length} keys`;
-        const saveBtn = document.getElementById('saveKeysBtn');
-        const copyBtn = document.getElementById('copyAllBtn');
-        const exportBtn = document.getElementById('exportBtn');
-        if (saveBtn) saveBtn.disabled = false;
-        if (copyBtn) copyBtn.disabled = false;
-        if (exportBtn) exportBtn.disabled = false;
-        if (saveBtn) saveBtn._items = items;
+        document.getElementById('keyCount').textContent = `${items.length} keys`;
+        document.getElementById('saveKeysBtn').disabled = false;
+        document.getElementById('copyAllBtn').disabled = false;
+        document.getElementById('exportBtn').disabled = false;
+        document.getElementById('saveKeysBtn')._items = items;
+        showToast(`Generated ${items.length} keys`, 'success');
     } catch (e) {
-        console.error('generateKeys error:', e);
-        alert('Key generation error: ' + e.message);
+        console.error(e);
+        showToast('Error generating keys: ' + e.message, 'error');
     }
 }
 
 function renderGeneratedKeys(items) {
     const list = document.getElementById('keyList');
-    if (!list) return;
     list.innerHTML = '';
     items.forEach(({ key, serial, expiryDays, user }) => {
         const div = document.createElement('div');
@@ -156,7 +117,13 @@ function renderGeneratedKeys(items) {
             ${expiryStr ? `<span class="key-expiry">${expiryStr}</span>` : ''}
             <span class="key-copied">Copied!</span>
         `;
-        div.addEventListener('click', () => copyKey(div, key));
+        div.addEventListener('click', () => {
+            navigator.clipboard.writeText(key).then(() => {
+                div.classList.add('copied');
+                setTimeout(() => div.classList.remove('copied'), 1200);
+                showToast('Key copied!', 'success');
+            });
+        });
         list.appendChild(div);
     });
 }
@@ -166,27 +133,51 @@ function saveGeneratedKeys() {
     const items = btn._items || [];
     if (!items.length) return;
     for (const item of items) {
-        db.push({
-            id: generateId(),
-            key: item.key,
-            serial: item.serial,
-            user: item.user || '',
-            status: 'active',
-            expiresAt: computeExpiry(item.expiryDays),
-            createdAt: Date.now()
-        });
+        db.push({ id: generateId(), key: item.key, serial: item.serial, user: item.user || '', status: 'active', expiresAt: computeExpiry(item.expiryDays), createdAt: Date.now() });
     }
     saveDB();
+    renderManageTable();
+    showToast(`Saved ${items.length} keys to database`, 'success');
     btn.textContent = 'Saved!';
-    setTimeout(() => { btn.textContent = 'Save to Database'; }, 2000);
+    setTimeout(() => { btn.textContent = '💾 Save'; }, 2000);
 }
 
-// ============ MANAGE TAB ============
+function copyAll() {
+    const texts = Array.from(document.querySelectorAll('.key-item .key-text')).map(el => el.textContent);
+    if (!texts.length) return;
+    navigator.clipboard.writeText(texts.join('\n')).then(() => {
+        const btn = document.getElementById('copyAllBtn');
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.textContent = '📋 Copy'; }, 2000);
+        showToast('All keys copied!', 'success');
+    });
+}
+
+function exportTxt() {
+    const texts = Array.from(document.querySelectorAll('.key-item .key-text')).map(el => el.textContent);
+    if (!texts.length) return;
+    const blob = new Blob([texts.join('\n')], { type: 'text/plain' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `keys_${Date.now()}.txt`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    showToast('File exported', 'success');
+}
+
+function clearOutput() {
+    document.getElementById('keyList').innerHTML = '';
+    document.getElementById('keyCount').textContent = '0 keys';
+    document.getElementById('saveKeysBtn').disabled = true;
+    document.getElementById('copyAllBtn').disabled = true;
+    document.getElementById('exportBtn').disabled = true;
+}
+
+// ===== MANAGE =====
 
 function renderManageTable() {
     const container = document.getElementById('manageTable');
     const searchTerm = (document.getElementById('searchInput').value || '').toLowerCase();
-
     let filtered = [...db];
 
     if (currentFilter === 'active') filtered = filtered.filter(k => getKeyStatus(k) === 'active');
@@ -194,77 +185,47 @@ function renderManageTable() {
     else if (currentFilter === 'revoked') filtered = filtered.filter(k => getKeyStatus(k) === 'revoked');
 
     if (searchTerm) {
-        filtered = filtered.filter(k =>
-            k.key.toLowerCase().includes(searchTerm) ||
-            k.user.toLowerCase().includes(searchTerm) ||
-            (k.serial && String(k.serial).includes(searchTerm))
-        );
+        filtered = filtered.filter(k => k.key.toLowerCase().includes(searchTerm) || k.user.toLowerCase().includes(searchTerm));
     }
 
-    let html = `
-        <div class="table-row header">
-            <input type="checkbox" id="selectAll">
-            <span>Key</span>
-            <span class="hide-mobile">User</span>
-            <span>Status</span>
-            <span class="hide-mobile">Expiry</span>
-            <span class="hide-mobile">Created</span>
-            <span>Actions</span>
-        </div>
-    `;
+    document.getElementById('navBadge').textContent = filtered.length;
+    document.getElementById('navBadge').style.display = filtered.length ? 'inline' : 'none';
+
+    let html = `<div class="table-row header">
+        <input type="checkbox" id="selectAll">
+        <span>Key</span><span>User</span><span>Status</span><span>Expiry</span><span>Created</span><span>Actions</span>
+    </div>`;
 
     if (!filtered.length) {
-        html += `<div class="table-row" style="grid-column:1/-1;text-align:center;padding:1.5rem;color:#484f58">No keys found.</div>`;
+        html += `<div class="table-row" style="justify-content:center;padding:1.5rem;color:var(--text-muted);font-family:var(--font);min-width:auto;grid-template-columns:1fr">No keys found.</div>`;
         container.innerHTML = html;
         return;
     }
 
     for (const k of filtered) {
         const status = getKeyStatus(k);
-        const statusClass = `status-${status}`;
-        const expiryStr = k.expiresAt ? new Date(k.expiresAt).toLocaleDateString() : '--';
-        const createdStr = new Date(k.createdAt).toLocaleDateString();
-        html += `
-            <div class="table-row" data-id="${k.id}">
-                <input type="checkbox" class="row-checkbox" value="${k.id}">
-                <span class="key-cell">${k.key}</span>
-                <span class="user-cell hide-mobile">${k.user || '--'}</span>
-                <span class="status-cell ${statusClass}">${status}</span>
-                <span class="date-cell hide-mobile">${expiryStr}</span>
-                <span class="date-cell hide-mobile">${createdStr}</span>
-                <span class="action-cell">
-                    <button class="edit-btn" data-id="${k.id}">Edit</button>
-                    <button class="toggle-btn" data-id="${k.id}">${status === 'revoked' ? 'Activate' : 'Revoke'}</button>
-                    <button class="danger-btn del-btn" data-id="${k.id}">Del</button>
-                </span>
-            </div>
-        `;
+        html += `<div class="table-row" data-id="${k.id}">
+            <input type="checkbox" class="row-checkbox" value="${k.id}">
+            <span class="key-cell">${k.key}</span>
+            <span class="user-cell">${k.user || '--'}</span>
+            <span class="status-cell status-${status}">${status}</span>
+            <span class="date-cell">${k.expiresAt ? new Date(k.expiresAt).toLocaleDateString() : '--'}</span>
+            <span class="date-cell">${new Date(k.createdAt).toLocaleDateString()}</span>
+            <span class="action-cell">
+                <button class="btn btn-sm edit-btn" data-id="${k.id}">Edit</button>
+                <button class="btn btn-sm toggle-btn" data-id="${k.id}">${status === 'revoked' ? 'Activate' : 'Revoke'}</button>
+                <button class="btn btn-sm btn-danger del-btn" data-id="${k.id}">Del</button>
+            </span>
+        </div>`;
     }
 
     container.innerHTML = html;
-
-    container.querySelector('.table-row.header').addEventListener('click', (e) => {
-        if (e.target.id === 'selectAll') {
-            const checked = e.target.checked;
-            container.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = checked);
-        }
-    });
-
-    container.querySelectorAll('.edit-btn').forEach(btn => {
-        btn.addEventListener('click', () => openEditModal(btn.dataset.id));
-    });
-
-    container.querySelectorAll('.toggle-btn').forEach(btn => {
-        btn.addEventListener('click', () => toggleKeyStatus(btn.dataset.id));
-    });
-
-    container.querySelectorAll('.del-btn').forEach(btn => {
-        btn.addEventListener('click', () => deleteKey(btn.dataset.id));
-    });
-
     document.getElementById('selectAll').addEventListener('change', (e) => {
         container.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = e.target.checked);
     });
+    container.querySelectorAll('.edit-btn').forEach(b => b.addEventListener('click', () => openEditModal(b.dataset.id)));
+    container.querySelectorAll('.toggle-btn').forEach(b => b.addEventListener('click', () => toggleKeyStatus(b.dataset.id)));
+    container.querySelectorAll('.del-btn').forEach(b => b.addEventListener('click', () => deleteKey(b.dataset.id)));
 }
 
 function toggleKeyStatus(id) {
@@ -273,34 +234,35 @@ function toggleKeyStatus(id) {
     k.status = k.status === 'revoked' ? 'active' : 'revoked';
     saveDB();
     renderManageTable();
+    showToast(`Key ${k.status === 'revoked' ? 'revoked' : 'activated'}`, 'info');
 }
 
 function deleteKey(id) {
-    if (!confirm('Delete this key?')) return;
+    const k = db.find(x => x.id === id);
+    if (!k || !confirm(`Delete key?\n${k.key}`)) return;
     db = db.filter(x => x.id !== id);
     saveDB();
     renderManageTable();
+    showToast('Key deleted', 'info');
 }
 
 function applyBulkAction() {
     const action = document.getElementById('bulkAction').value;
-    if (!action) return;
+    if (!action) return showToast('Select an action', 'error');
     const checked = document.querySelectorAll('.row-checkbox:checked');
-    if (!checked.length) return alert('Select keys first.');
+    if (!checked.length) return showToast('Select keys first', 'error');
     const ids = new Set(Array.from(checked).map(cb => cb.value));
     if (action === 'delete') {
         if (!confirm(`Delete ${ids.size} keys?`)) return;
         db = db.filter(k => !ids.has(k.id));
-    } else if (action === 'activate') {
-        db.forEach(k => { if (ids.has(k.id)) k.status = 'active'; });
-    } else if (action === 'revoke') {
-        db.forEach(k => { if (ids.has(k.id)) k.status = 'revoked'; });
-    }
+    } else if (action === 'activate') db.forEach(k => { if (ids.has(k.id)) k.status = 'active'; });
+    else if (action === 'revoke') db.forEach(k => { if (ids.has(k.id)) k.status = 'revoked'; });
     saveDB();
     renderManageTable();
+    showToast(`Applied ${action} to ${ids.size} keys`, 'success');
 }
 
-// ============ MODAL ============
+// ===== MODALS =====
 
 function openEditModal(id) {
     const k = db.find(x => x.id === id);
@@ -309,8 +271,8 @@ function openEditModal(id) {
     document.getElementById('editKeyInput').value = k.key;
     document.getElementById('editUser').value = k.user || '';
     document.getElementById('editStatus').value = k.status;
-    const days = k.expiresAt ? Math.round((k.expiresAt - Date.now()) / 86400000) : 0;
-    document.getElementById('editExpiry').value = Math.max(0, days);
+    const days = k.expiresAt ? Math.max(0, Math.round((k.expiresAt - Date.now()) / 86400000)) : 0;
+    document.getElementById('editExpiry').value = Math.min(days, 365);
     document.getElementById('editModal').classList.add('open');
 }
 
@@ -323,7 +285,8 @@ function saveEdit() {
     k.expiresAt = computeExpiry(days);
     saveDB();
     renderManageTable();
-    document.getElementById('editModal').classList.remove('open');
+    closeModals();
+    showToast('Key updated', 'success');
 }
 
 function openAddCustomModal() {
@@ -336,50 +299,53 @@ function openAddCustomModal() {
 
 function saveCustomKey() {
     const keyStr = document.getElementById('customKeyInput').value.trim();
-    if (!keyStr) return alert('Enter a key.');
-    const user = document.getElementById('customUser').value.trim();
-    const days = parseInt(document.getElementById('customExpiry').value) || 0;
-    const status = document.getElementById('customStatus').value;
+    if (!keyStr) return showToast('Enter a key', 'error');
+    if (db.find(k => k.key === keyStr)) return showToast('Key already exists', 'error');
     db.push({
-        id: generateId(),
-        key: keyStr,
-        serial: 0,
-        user,
-        status,
-        expiresAt: computeExpiry(days),
+        id: generateId(), key: keyStr, serial: 0,
+        user: document.getElementById('customUser').value.trim(),
+        status: document.getElementById('customStatus').value,
+        expiresAt: computeExpiry(parseInt(document.getElementById('customExpiry').value) || 0),
         createdAt: Date.now()
     });
     saveDB();
     renderManageTable();
-    document.getElementById('addCustomModal').classList.remove('open');
+    closeModals();
+    showToast('Custom key added', 'success');
 }
 
-// ============ VALIDATE ============
+function closeModals() {
+    document.querySelectorAll('.modal').forEach(m => m.classList.remove('open'));
+}
+
+// ===== VALIDATE =====
 
 async function validateKey() {
     const input = document.getElementById('validateInput').value.trim();
     const result = document.getElementById('validateResult');
     if (!input) {
-        result.className = 'invalid';
+        result.className = 'validate-result invalid';
         result.textContent = 'Please enter a key.';
-        result.style.display = 'block';
         return;
     }
+    try {
+        const urlKey = new URLSearchParams(window.location.search).get('key');
+        if (urlKey && !input) document.getElementById('validateInput').value = urlKey;
+    } catch {}
+
     const secret = getSecret();
     const parts = input.split('-');
     const sig = parts.pop();
     const baseKey = parts.join('-');
     if (!baseKey || !sig) {
-        result.className = 'invalid';
+        result.className = 'validate-result invalid';
         result.textContent = 'Invalid key format.';
-        result.style.display = 'block';
         return;
     }
     const expectedSig = await hmacSign(baseKey, secret);
     if (sig !== expectedSig) {
-        result.className = 'invalid';
+        result.className = 'validate-result invalid';
         result.textContent = 'Invalid signature. Key is not authentic.';
-        result.style.display = 'block';
         return;
     }
     const dbKey = db.find(k => k.key === input);
@@ -390,79 +356,92 @@ async function validateKey() {
         else if (status === 'expired') msg += 'Key is EXPIRED.';
         else msg += `Key is ACTIVE. User: ${dbKey.user || 'unassigned'}`;
     } else {
-        msg += 'Key not found in database.';
+        msg += 'Key not found in database (signature valid).';
     }
-    result.className = 'valid';
+    result.className = 'validate-result valid';
     result.textContent = msg;
-    result.style.display = 'block';
 }
 
-// ============ HELPERS ============
+// ===== API =====
 
-function copyKey(el, key) {
-    navigator.clipboard.writeText(key).then(() => {
-        el.classList.add('copied');
-        setTimeout(() => el.classList.remove('copied'), 1200);
-    });
+async function handleApiRequest() {
+    const params = new URLSearchParams(window.location.search);
+    const key = params.get('key');
+    const format = params.get('format');
+    if (!key) return;
+
+    if (format === 'json') {
+        const secret = getSecret();
+        const parts = key.split('-');
+        const sig = parts.pop();
+        const baseKey = parts.join('-');
+        const expectedSig = await hmacSign(baseKey, secret);
+        const sigValid = sig === expectedSig;
+        const dbKey = db.find(k => k.key === key);
+        const status = dbKey ? getKeyStatus(dbKey) : 'unknown';
+
+        const response = {
+            valid: sigValid && status === 'active',
+            signatureValid: sigValid,
+            status: dbKey ? status : 'not_found',
+            key: key,
+            user: dbKey ? (dbKey.user || null) : null,
+            expiresAt: dbKey && dbKey.expiresAt ? new Date(dbKey.expiresAt).toISOString() : null,
+            checkedAt: new Date().toISOString()
+        };
+
+        document.body.innerHTML = '<pre style="background:#0a0e14;color:#e2e8f0;padding:2rem;font-family:monospace;font-size:0.9rem">' + JSON.stringify(response, null, 2) + '</pre>';
+        return;
+    }
+
+    setTimeout(() => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        const vt = document.getElementById('validateTab');
+        const vb = document.querySelector('[data-tab="validate"]');
+        if (vt) vt.classList.add('active');
+        if (vb) vb.classList.add('active');
+        document.getElementById('validateInput').value = key;
+        validateKey();
+    }, 300);
 }
 
-function copyAll() {
-    const items = document.querySelectorAll('.key-item .key-text');
-    if (!items.length) return;
-    const text = Array.from(items).map(el => el.textContent).join('\n');
-    navigator.clipboard.writeText(text).then(() => {
-        const btn = document.getElementById('copyAllBtn');
-        btn.textContent = 'Copied!';
-        setTimeout(() => { btn.textContent = 'Copy All'; }, 2000);
-    });
+function copyText(text, label) {
+    navigator.clipboard.writeText(text).then(() => showToast(`${label} copied!`, 'success'));
 }
 
-function exportTxt() {
-    const items = document.querySelectorAll('.key-item .key-text');
-    if (!items.length) return;
-    const keys = Array.from(items).map(el => el.textContent).join('\n');
-    const blob = new Blob([keys], { type: 'text/plain' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `keys_${Date.now()}.txt`;
-    a.click();
-    URL.revokeObjectURL(a.href);
+function buildApiUrl(key) {
+    return `https://kbinaana.github.io/keygen-panel/?key=${key}&format=json`;
 }
 
-function clearOutput() {
-    document.getElementById('keyList').innerHTML = '';
-    document.getElementById('keyCount').textContent = '0 keys';
-    document.getElementById('copyAllBtn').disabled = true;
-    document.getElementById('exportBtn').disabled = true;
-    document.getElementById('saveKeysBtn').disabled = true;
+async function apiTest() {
+    const key = document.getElementById('apiTestInput').value.trim();
+    if (!key) return showToast('Enter a key', 'error');
+    const url = buildApiUrl(key);
+    try {
+        const res = await fetch(url);
+        const data = await res.json();
+        document.getElementById('apiTestResult').textContent = JSON.stringify(data, null, 2);
+        document.getElementById('apiTestResult').style.display = 'block';
+    } catch {
+        document.getElementById('apiTestResult').textContent = 'Error fetching. Try again.';
+        document.getElementById('apiTestResult').style.display = 'block';
+    }
 }
 
-function updateStats() {
-    const total = db.length;
-    const active = db.filter(k => getKeyStatus(k) === 'active').length;
-    const expired = db.filter(k => getKeyStatus(k) === 'expired').length;
-    const revoked = db.filter(k => getKeyStatus(k) === 'revoked').length;
-    document.getElementById('statTotal').textContent = total;
-    document.getElementById('statActive').textContent = active;
-    document.getElementById('statExpired').textContent = expired;
-    document.getElementById('statRevoked').textContent = revoked;
-    document.getElementById('dbInfo').textContent = `${total} keys stored (${active} active)`;
-}
-
-// ============ DATABASE EXPORT/IMPORT ============
+// ===== SETTINGS =====
 
 function exportDb() {
     const blob = new Blob([JSON.stringify(db, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `keymaster_db_${new Date().toISOString().slice(0,10)}.json`;
+    a.download = `keymaster_${new Date().toISOString().slice(0,10)}.json`;
     a.click();
     URL.revokeObjectURL(a.href);
+    showToast('Database exported', 'success');
 }
 
-function importDb() {
-    document.getElementById('importFileInput').click();
-}
+function importDb() { document.getElementById('importFileInput').click(); }
 
 function handleImport(e) {
     const file = e.target.files[0];
@@ -471,46 +450,52 @@ function handleImport(e) {
     reader.onload = (ev) => {
         try {
             const data = JSON.parse(ev.target.result);
-            if (!Array.isArray(data)) throw new Error('Invalid format');
-            const add = confirm(`Add ${data.length} keys to existing database? Cancel to replace all.`);
-            if (add) db = db.concat(data);
-            else db = data;
+            if (!Array.isArray(data)) throw new Error('Invalid');
+            const add = confirm(`Add ${data.length} keys to DB? Cancel to replace.`);
+            db = add ? db.concat(data) : data;
             saveDB();
             renderManageTable();
-            alert(`Imported ${data.length} keys.`);
-        } catch {
-            alert('Invalid JSON file.');
-        }
+            showToast(`Imported ${data.length} keys`, 'success');
+        } catch { showToast('Invalid JSON file', 'error'); }
     };
     reader.readAsText(file);
-    e.target.value = '';
 }
 
 function clearAllKeys() {
     if (!db.length) return;
-    if (!confirm('Delete ALL keys from database? This cannot be undone!')) return;
-    if (!confirm('Are you sure?')) return;
+    if (!confirm('Delete ALL keys? This cannot be undone!')) return;
+    if (!confirm('ARE YOU SURE?')) return;
     db = [];
     saveDB();
     renderManageTable();
+    showToast('All keys deleted', 'info');
 }
 
-// ============ EVENT LISTENERS ============
+function updateStats() {
+    const total = db.length;
+    const active = db.filter(k => getKeyStatus(k) === 'active').length;
+    const expired = db.filter(k => getKeyStatus(k) === 'expired').length;
+    const revoked = db.filter(k => getKeyStatus(k) === 'revoked').length;
+    document.getElementById('msActive').textContent = active;
+    document.getElementById('msExpired').textContent = expired;
+    document.getElementById('msRevoked').textContent = revoked;
+    document.getElementById('dbInfo').textContent = `${total} keys stored (${active} active, ${expired} expired, ${revoked} revoked)`;
+}
 
-document.getElementById('generateBtn').addEventListener('click', (e) => { generateKeys(); });
+// ===== EVENT LISTENERS =====
+
+document.getElementById('generateBtn').addEventListener('click', generateKeys);
 document.getElementById('saveKeysBtn').addEventListener('click', saveGeneratedKeys);
 document.getElementById('copyAllBtn').addEventListener('click', copyAll);
 document.getElementById('exportBtn').addEventListener('click', exportTxt);
 document.getElementById('clearBtn').addEventListener('click', clearOutput);
 
 document.getElementById('validateBtn').addEventListener('click', validateKey);
-document.getElementById('validateInput').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') validateKey();
-});
+document.getElementById('validateInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') validateKey(); });
 
 document.getElementById('saveSecretBtn').addEventListener('click', () => {
     const val = document.getElementById('secretKey').value.trim();
-    if (val) { saveSecret(val); alert('Secret saved!'); }
+    if (val) { saveSecret(val); showToast('Secret saved!', 'success'); }
 });
 
 document.getElementById('randomSecretBtn').addEventListener('click', () => {
@@ -519,7 +504,7 @@ document.getElementById('randomSecretBtn').addEventListener('click', () => {
     const secret = Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
     document.getElementById('secretKey').value = secret;
     saveSecret(secret);
-    alert('Random secret generated and saved!');
+    showToast('Random secret generated and saved!', 'success');
 });
 
 document.getElementById('applyBulkBtn').addEventListener('click', applyBulkAction);
@@ -530,49 +515,68 @@ document.getElementById('exportDbBtn').addEventListener('click', exportDb);
 document.getElementById('importDbBtn').addEventListener('click', importDb);
 document.getElementById('importFileInput').addEventListener('change', handleImport);
 document.getElementById('clearAllBtn').addEventListener('click', clearAllKeys);
-
 document.getElementById('searchInput').addEventListener('input', renderManageTable);
 
-document.querySelectorAll('.filter-btn').forEach(btn => {
+document.getElementById('copyUrlExample').addEventListener('click', () => {
+    copyText(document.getElementById('urlExample').textContent, 'URL');
+});
+
+document.getElementById('copyCurlBtn').addEventListener('click', () => {
+    copyText(document.getElementById('curlExample').textContent, 'cURL');
+});
+
+document.getElementById('copyFetchBtn').addEventListener('click', () => {
+    copyText(document.getElementById('fetchExample').textContent, 'Fetch');
+});
+
+document.getElementById('copyPythonBtn').addEventListener('click', () => {
+    copyText(document.getElementById('pythonExample').textContent, 'Python');
+});
+
+document.getElementById('copyNodeBtn').addEventListener('click', () => {
+    copyText(document.getElementById('nodeExample').textContent, 'Node.js');
+});
+
+document.getElementById('apiTestBtn').addEventListener('click', apiTest);
+document.getElementById('apiTestInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') apiTest(); });
+
+document.querySelectorAll('.filter-pills .pill').forEach(btn => {
     btn.addEventListener('click', () => {
-        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.filter-pills .pill').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         currentFilter = btn.dataset.filter;
         renderManageTable();
     });
 });
 
-document.querySelectorAll('.close-modal').forEach(el => {
-    el.addEventListener('click', () => {
-        document.querySelectorAll('.modal').forEach(m => m.classList.remove('open'));
-    });
+document.querySelectorAll('.modal-close, .modal-close-btn').forEach(el => {
+    el.addEventListener('click', closeModals);
 });
 
-window.addEventListener('click', (e) => {
-    if (e.target.classList.contains('modal')) e.target.classList.remove('open');
+document.querySelectorAll('.modal-backdrop').forEach(el => {
+    el.addEventListener('click', closeModals);
 });
 
-document.querySelectorAll('.tab-btn').forEach(btn => {
+document.querySelectorAll('.nav-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
         btn.classList.add('active');
-        document.getElementById(btn.dataset.tab + 'Tab').classList.add('active');
+        const tab = document.getElementById(btn.dataset.tab + 'Tab');
+        if (tab) tab.classList.add('active');
     });
+});
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeModals();
 });
 
 document.getElementById('secretKey').value = getSecret();
 
-document.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && document.getElementById('generateTab').classList.contains('active')) {
-        const tag = e.target.tagName;
-        if (tag !== 'TEXTAREA' && tag !== 'INPUT') generateKeys();
-    }
-});
-
-// ============ INIT ============
+// ===== INIT =====
 
 loadDB();
 renderManageTable();
 updateStats();
 generateKeys();
+handleApiRequest();

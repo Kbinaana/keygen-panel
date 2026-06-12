@@ -3,234 +3,393 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KeyMaster - Key Management Panel</title>
+    <title>KeyMaster — License Management System</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>KeyMaster Panel</h1>
-            <p>Full License Key Management System</p>
-        </div>
-
-        <div class="stats">
-            <div class="stat-card"><span class="stat-num" id="statTotal">0</span><span>Total</span></div>
-            <div class="stat-card active"><span class="stat-num" id="statActive">0</span><span>Active</span></div>
-            <div class="stat-card expired"><span class="stat-num" id="statExpired">0</span><span>Expired</span></div>
-            <div class="stat-card revoked"><span class="stat-num" id="statRevoked">0</span><span>Revoked</span></div>
-        </div>
-
-        <div class="tabs">
-            <button class="tab-btn active" data-tab="generate">Generate</button>
-            <button class="tab-btn" data-tab="manage">Manage Keys</button>
-            <button class="tab-btn" data-tab="validate">Validate</button>
-            <button class="tab-btn" data-tab="settings">Settings</button>
-        </div>
-
-        <!-- GENERATE TAB -->
-        <div id="generateTab" class="tab-content active">
-            <div class="controls">
-                <div class="control-row">
-                    <div class="control-group">
-                        <label>Key Format</label>
-                        <select id="format">
-                            <option value="XXXXX-XXXXX-XXXXX-XXXXX">XXXXX-XXXXX-XXXXX-XXXXX</option>
-                            <option value="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX">UUID Style</option>
-                            <option value="XXXXXX-XXXXXX-XXXXXX-XXXXXX-XXXXXX">Long (5x6)</option>
-                            <option value="XXXXXX-XXXXXX-XXXXXX">Short (3x6)</option>
-                        </select>
-                    </div>
-                    <div class="control-group">
-                        <label>Count</label>
-                        <input type="number" id="count" min="1" max="500" value="5">
-                    </div>
-                </div>
-                <div class="control-row">
-                    <div class="control-group">
-                        <label>Prefix</label>
-                        <input type="text" id="prefix" placeholder="e.g. MOD-">
-                    </div>
-                    <div class="control-group">
-                        <label>Serial # Start</label>
-                        <input type="number" id="serialStart" min="0" value="1">
-                    </div>
-                </div>
-                <div class="control-row">
-                    <div class="control-group">
-                        <label>Expiry</label>
-                        <select id="expiry">
-                            <option value="0">No expiry</option>
-                            <option value="7">7 days</option>
-                            <option value="30">30 days</option>
-                            <option value="90">90 days</option>
-                            <option value="180">6 months</option>
-                            <option value="365">1 year</option>
-                        </select>
-                    </div>
-                    <div class="control-group">
-                        <label>HMAC Sign</label>
-                        <label class="toggle">
-                            <input type="checkbox" id="hmacToggle" checked>
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                </div>
-                <div class="control-group">
-                    <label>Assign to User (optional)</label>
-                    <input type="text" id="assignUser" placeholder="e.g. gamer123">
-                </div>
-                <button id="generateBtn">Generate Keys</button>
-            </div>
-
-            <div class="output">
-                <div class="output-header">
-                    <span id="keyCount">0 keys</span>
-                    <button id="saveKeysBtn" disabled>Save to Database</button>
-                    <button id="exportBtn" disabled>Export .txt</button>
-                    <button id="copyAllBtn" disabled>Copy All</button>
-                    <button id="clearBtn">Clear</button>
-                </div>
-                <div id="keyList" class="key-list"></div>
-            </div>
-        </div>
-
-        <!-- MANAGE TAB -->
-        <div id="manageTab" class="tab-content">
-            <div class="manage-toolbar">
-                <div class="control-group search-box">
-                    <input type="text" id="searchInput" placeholder="Search by key, user, or serial...">
-                </div>
-                <div class="manage-actions">
-                    <select id="bulkAction">
-                        <option value="">Bulk Action</option>
-                        <option value="activate">Activate</option>
-                        <option value="revoke">Revoke</option>
-                        <option value="delete">Delete</option>
-                    </select>
-                    <button id="applyBulkBtn">Apply</button>
-                    <button id="addCustomBtn">+ Add Custom Key</button>
+    <div class="app">
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-icon">🔑</div>
+                <div class="brand-text">
+                    <h1>KeyMaster</h1>
+                    <span>License Management</span>
                 </div>
             </div>
-
-            <div class="filter-tabs">
-                <button class="filter-btn active" data-filter="all">All</button>
-                <button class="filter-btn" data-filter="active">Active</button>
-                <button class="filter-btn" data-filter="expired">Expired</button>
-                <button class="filter-btn" data-filter="revoked">Revoked</button>
+            <nav class="nav">
+                <button class="nav-btn active" data-tab="generate">
+                    <span class="nav-icon">⚡</span> Generate
+                </button>
+                <button class="nav-btn" data-tab="manage">
+                    <span class="nav-icon">📋</span> Keys
+                    <span class="badge" id="navBadge" style="display:none">0</span>
+                </button>
+                <button class="nav-btn" data-tab="validate">
+                    <span class="nav-icon">✓</span> Validate
+                </button>
+                <button class="nav-btn" data-tab="api">
+                    <span class="nav-icon">🔌</span> API
+                </button>
+                <button class="nav-btn" data-tab="settings">
+                    <span class="nav-icon">⚙</span> Settings
+                </button>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="mini-stats">
+                    <div class="ms-item"><span class="ms-dot active-dot"></span><span id="msActive">0</span></div>
+                    <div class="ms-item"><span class="ms-dot expired-dot"></span><span id="msExpired">0</span></div>
+                    <div class="ms-item"><span class="ms-dot revoked-dot"></span><span id="msRevoked">0</span></div>
+                </div>
             </div>
+        </aside>
 
-            <div id="manageTable" class="manage-table"></div>
-
-            <div id="addCustomModal" class="modal">
-                <div class="modal-content">
-                    <span class="close-modal">&times;</span>
-                    <h3>Add Custom Key</h3>
-                    <div class="controls">
-                        <div class="control-group">
-                            <label>Key</label>
-                            <input type="text" id="customKeyInput" placeholder="Enter your key...">
-                        </div>
-                        <div class="control-row">
-                            <div class="control-group">
-                                <label>User</label>
-                                <input type="text" id="customUser" placeholder="username">
+        <main class="main">
+            <!-- GENERATE TAB -->
+            <div id="generateTab" class="tab-content active">
+                <div class="panel">
+                    <div class="panel-header">
+                        <h2>Generate Keys</h2>
+                        <p>Create new license keys with custom settings</p>
+                    </div>
+                    <div class="panel-body">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Key Format</label>
+                                <select id="format">
+                                    <option value="XXXXX-XXXXX-XXXXX-XXXXX">XXXXX-XXXXX-XXXXX-XXXXX</option>
+                                    <option value="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX">UUID Style</option>
+                                    <option value="XXXXXX-XXXXXX-XXXXXX-XXXXXX-XXXXXX">Long (5×6)</option>
+                                    <option value="XXXXXX-XXXXXX-XXXXXX">Short (3×6)</option>
+                                </select>
                             </div>
-                            <div class="control-group">
+                            <div class="form-group">
+                                <label>Count</label>
+                                <input type="number" id="count" min="1" max="500" value="5">
+                            </div>
+                            <div class="form-group">
+                                <label>Prefix</label>
+                                <input type="text" id="prefix" placeholder="e.g. MOD-">
+                            </div>
+                            <div class="form-group">
+                                <label>Serial Start</label>
+                                <input type="number" id="serialStart" min="0" value="1">
+                            </div>
+                            <div class="form-group">
                                 <label>Expiry</label>
-                                <select id="customExpiry">
+                                <select id="expiry">
                                     <option value="0">No expiry</option>
                                     <option value="7">7 days</option>
                                     <option value="30">30 days</option>
                                     <option value="90">90 days</option>
+                                    <option value="180">6 months</option>
                                     <option value="365">1 year</option>
                                 </select>
                             </div>
+                            <div class="form-group">
+                                <label>HMAC Sign</label>
+                                <label class="toggle">
+                                    <input type="checkbox" id="hmacToggle" checked>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            <div class="form-group">
+                                <label>Assign User</label>
+                                <input type="text" id="assignUser" placeholder="username">
+                            </div>
+                            <div class="form-group form-action">
+                                <button id="generateBtn" class="btn btn-primary btn-block">Generate Keys</button>
+                            </div>
                         </div>
-                        <div class="control-group">
-                            <label>Status</label>
-                            <select id="customStatus">
-                                <option value="active">Active</option>
-                                <option value="revoked">Revoked</option>
-                            </select>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-header">
+                        <h2>Generated Keys</h2>
+                        <div class="panel-actions">
+                            <span id="keyCount" class="count-label">0 keys</span>
+                            <button id="saveKeysBtn" class="btn btn-sm" disabled>💾 Save</button>
+                            <button id="exportBtn" class="btn btn-sm" disabled>📥 Export</button>
+                            <button id="copyAllBtn" class="btn btn-sm" disabled>📋 Copy</button>
+                            <button id="clearBtn" class="btn btn-sm btn-ghost">Clear</button>
                         </div>
-                        <button id="saveCustomBtn">Add Key</button>
+                    </div>
+                    <div class="panel-body">
+                        <div id="keyList" class="key-list"></div>
                     </div>
                 </div>
             </div>
 
-            <div id="editModal" class="modal">
-                <div class="modal-content">
-                    <span class="close-modal">&times;</span>
-                    <h3>Edit Key</h3>
-                    <div class="controls">
-                        <div class="control-group">
-                            <label>Key</label>
-                            <input type="text" id="editKeyInput" readonly>
+            <!-- MANAGE TAB -->
+            <div id="manageTab" class="tab-content">
+                <div class="panel">
+                    <div class="panel-header">
+                        <h2>Key Database</h2>
+                        <div class="panel-actions">
+                            <button id="addCustomBtn" class="btn btn-primary btn-sm">+ Add Custom Key</button>
                         </div>
-                        <div class="control-row">
-                            <div class="control-group">
-                                <label>User</label>
-                                <input type="text" id="editUser" placeholder="username">
+                    </div>
+                    <div class="panel-body">
+                        <div class="toolbar">
+                            <div class="search-wrap">
+                                <span class="search-icon">🔍</span>
+                                <input type="text" id="searchInput" placeholder="Search by key, user, serial...">
                             </div>
-                            <div class="control-group">
-                                <label>Status</label>
-                                <select id="editStatus">
-                                    <option value="active">Active</option>
-                                    <option value="revoked">Revoked</option>
+                            <div class="toolbar-actions">
+                                <select id="bulkAction" class="select-sm">
+                                    <option value="">Bulk Action</option>
+                                    <option value="activate">✓ Activate</option>
+                                    <option value="revoke">✕ Revoke</option>
+                                    <option value="delete">🗑 Delete</option>
                                 </select>
+                                <button id="applyBulkBtn" class="btn btn-sm">Apply</button>
                             </div>
                         </div>
-                        <div class="control-group">
-                            <label>Expiry</label>
-                            <select id="editExpiry">
-                                <option value="0">No expiry</option>
-                                <option value="7">7 days</option>
-                                <option value="30">30 days</option>
-                                <option value="90">90 days</option>
-                                <option value="180">6 months</option>
-                                <option value="365">1 year</option>
-                            </select>
+                        <div class="filter-pills">
+                            <button class="pill active" data-filter="all">All</button>
+                            <button class="pill pill-green" data-filter="active">Active</button>
+                            <button class="pill pill-yellow" data-filter="expired">Expired</button>
+                            <button class="pill pill-red" data-filter="revoked">Revoked</button>
                         </div>
-                        <button id="saveEditBtn">Save Changes</button>
+                        <div id="manageTable" class="table-wrap"></div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- VALIDATE TAB -->
-        <div id="validateTab" class="tab-content">
-            <div class="controls">
-                <div class="control-group">
-                    <label>Paste Key to Validate</label>
-                    <input type="text" id="validateInput" placeholder="e.g. ABCDE-FGHIJ-KLMNO-PQRST">
+            <!-- VALIDATE TAB -->
+            <div id="validateTab" class="tab-content">
+                <div class="panel">
+                    <div class="panel-header">
+                        <h2>Validate Key</h2>
+                        <p>Check if a key is authentic and active</p>
+                    </div>
+                    <div class="panel-body">
+                        <div class="validate-input-row">
+                            <input type="text" id="validateInput" placeholder="Paste your key here...">
+                            <button id="validateBtn" class="btn btn-primary">Validate</button>
+                        </div>
+                        <div id="validateResult" class="validate-result"></div>
+                    </div>
                 </div>
-                <button id="validateBtn">Validate Key</button>
+                <div class="panel">
+                    <div class="panel-header">
+                        <h2>Quick Validate via URL</h2>
+                        <p>Append <code>?key=YOUR_KEY</code> to the page URL to auto-validate</p>
+                    </div>
+                    <div class="panel-body">
+                        <div class="url-example">
+                            <code id="urlExample">https://kbinaana.github.io/keygen-panel/?key=YOUR_KEY_HERE</code>
+                            <button class="btn btn-sm" id="copyUrlExample">Copy URL</button>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div id="validateResult"></div>
-        </div>
 
-        <!-- SETTINGS TAB -->
-        <div id="settingsTab" class="tab-content">
-            <div class="controls">
-                <div class="control-group">
-                    <label>HMAC Secret Key</label>
-                    <input type="text" id="secretKey" placeholder="Enter a secret key...">
-                    <span class="hint">Same secret se sign & validate hoga. Secret change karne se purane keys invalid ho jayenge.</span>
+            <!-- API TAB -->
+            <div id="apiTab" class="tab-content">
+                <div class="panel">
+                    <div class="panel-header">
+                        <h2>🔌 API Reference</h2>
+                        <p>Validate keys programmatically from your app</p>
+                    </div>
+                    <div class="panel-body api-content">
+                        <div class="api-section">
+                            <h3>REST API Endpoint</h3>
+                            <div class="endpoint-card">
+                                <span class="method get">GET</span>
+                                <code>https://kbinaana.github.io/keygen-panel/?key=&lt;KEY&gt;&amp;format=json</code>
+                            </div>
+                            <p class="api-desc">Returns JSON with validation result. No server needed — works via GitHub Pages!</p>
+                        </div>
+
+                        <div class="api-section">
+                            <h3>Response Format</h3>
+                            <pre class="code-block" id="apiResponseExample">{
+  "valid": true,
+  "status": "active",
+  "key": "ABCDE-FGHIJ-KLMNO-PQRST-XXXX",
+  "user": "gamer123",
+  "expiresAt": "2026-12-31",
+  "checkedAt": "2026-06-12T12:00:00Z"
+}</pre>
+                        </div>
+
+                        <div class="api-section">
+                            <h3>cURL Example</h3>
+                            <pre class="code-block" id="curlExample">curl "https://kbinaana.github.io/keygen-panel/?key=ABCDE-FGHIJ-KLMNO-PQRST-XXXX&format=json"</pre>
+                            <button class="btn btn-sm" id="copyCurlBtn">📋 Copy cURL</button>
+                        </div>
+
+                        <div class="api-section">
+                            <h3>JavaScript / Fetch</h3>
+                            <pre class="code-block" id="fetchExample">fetch('https://kbinaana.github.io/keygen-panel/?key=ABCDE-FGHIJ-KLMNO-PQRST-XXXX&format=json')
+  .then(r => r.json())
+  .then(data => console.log(data));</pre>
+                            <button class="btn btn-sm" id="copyFetchBtn">📋 Copy Fetch</button>
+                        </div>
+
+                        <div class="api-section">
+                            <h3>Python</h3>
+                            <pre class="code-block" id="pythonExample">import requests
+r = requests.get('https://kbinaana.github.io/keygen-panel/', params={'key': 'ABCDE-FGHIJ-KLMNO-PQRST-XXXX', 'format': 'json'})
+data = r.json()
+print(data)</pre>
+                            <button class="btn btn-sm" id="copyPythonBtn">📋 Copy Python</button>
+                        </div>
+
+                        <div class="api-section">
+                            <h3>Node.js</h3>
+                            <pre class="code-block" id="nodeExample">const res = await fetch('https://kbinaana.github.io/keygen-panel/?key=ABCDE-FGHIJ-KLMNO-PQRST-XXXX&format=json')
+const data = await res.json()
+console.log(data)</pre>
+                            <button class="btn btn-sm" id="copyNodeBtn">📋 Copy Node.js</button>
+                        </div>
+
+                        <div class="api-section">
+                            <h3>Webhook / Auto-Validation</h3>
+                            <p class="api-desc">Your mod loader or app can redirect users to the validation URL. The page will auto-check the key and display the result.</p>
+                            <div class="endpoint-card">
+                                <span class="method get">GET</span>
+                                <code>https://kbinaana.github.io/keygen-panel/?key=&lt;KEY&gt;</code>
+                            </div>
+                        </div>
+
+                        <div class="api-section">
+                            <h3>Test API</h3>
+                            <div class="api-test-row">
+                                <input type="text" id="apiTestInput" placeholder="Enter a key to test...">
+                                <button id="apiTestBtn" class="btn btn-primary">Test</button>
+                            </div>
+                            <pre class="code-block" id="apiTestResult" style="display:none"></pre>
+                        </div>
+                    </div>
                 </div>
-                <button id="saveSecretBtn">Save Secret</button>
-                <button id="randomSecretBtn">Generate Random Secret</button>
-                <hr>
-                <div class="control-group">
-                    <label>Database</label>
-                    <span class="hint" id="dbInfo">0 keys stored</span>
+            </div>
+
+            <!-- SETTINGS TAB -->
+            <div id="settingsTab" class="tab-content">
+                <div class="panel">
+                    <div class="panel-header">
+                        <h2>⚙ Settings</h2>
+                    </div>
+                    <div class="panel-body">
+                        <div class="form-group">
+                            <label>HMAC Secret Key</label>
+                            <input type="text" id="secretKey" placeholder="Enter a secret key...">
+                            <p class="form-hint">Same secret se sign aur validate hoga. Secret change se purane keys invalid ho jayenge.</p>
+                        </div>
+                        <div class="btn-row">
+                            <button id="saveSecretBtn" class="btn btn-primary">Save Secret</button>
+                            <button id="randomSecretBtn" class="btn">Generate Random</button>
+                        </div>
+                        <hr>
+                        <div class="form-group">
+                            <label>Database</label>
+                            <p class="form-hint" id="dbInfo">0 keys stored</p>
+                        </div>
+                        <div class="btn-row">
+                            <button id="exportDbBtn" class="btn">📤 Export JSON</button>
+                            <button id="importDbBtn" class="btn">📥 Import JSON</button>
+                            <button id="clearAllBtn" class="btn btn-danger">🗑 Delete All</button>
+                        </div>
+                        <input type="file" id="importFileInput" accept=".json" style="display:none">
+                    </div>
                 </div>
-                <button id="exportDbBtn">Export Database (JSON)</button>
-                <button id="importDbBtn">Import Database (JSON)</button>
-                <input type="file" id="importFileInput" accept=".json" style="display:none">
-                <button id="clearAllBtn" class="danger-btn">Delete All Keys</button>
+            </div>
+        </main>
+    </div>
+
+    <!-- MODALS -->
+    <div id="addCustomModal" class="modal">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add Custom Key</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Key</label>
+                    <input type="text" id="customKeyInput" placeholder="Enter your key...">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>User</label>
+                        <input type="text" id="customUser" placeholder="username">
+                    </div>
+                    <div class="form-group">
+                        <label>Expiry</label>
+                        <select id="customExpiry">
+                            <option value="0">No expiry</option>
+                            <option value="7">7 days</option>
+                            <option value="30">30 days</option>
+                            <option value="90">90 days</option>
+                            <option value="365">1 year</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Status</label>
+                    <select id="customStatus">
+                        <option value="active">Active</option>
+                        <option value="revoked">Revoked</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost modal-close-btn">Cancel</button>
+                <button id="saveCustomBtn" class="btn btn-primary">Add Key</button>
             </div>
         </div>
     </div>
+
+    <div id="editModal" class="modal">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Edit Key</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Key</label>
+                    <input type="text" id="editKeyInput" readonly>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>User</label>
+                        <input type="text" id="editUser" placeholder="username">
+                    </div>
+                    <div class="form-group">
+                        <label>Status</label>
+                        <select id="editStatus">
+                            <option value="active">Active</option>
+                            <option value="revoked">Revoked</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Expiry</label>
+                    <select id="editExpiry">
+                        <option value="0">No expiry</option>
+                        <option value="7">7 days</option>
+                        <option value="30">30 days</option>
+                        <option value="90">90 days</option>
+                        <option value="180">6 months</option>
+                        <option value="365">1 year</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost modal-close-btn">Cancel</button>
+                <button id="saveEditBtn" class="btn btn-primary">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST -->
+    <div id="toast" class="toast"></div>
+
     <script src="script.js"></script>
 </body>
 </html>
