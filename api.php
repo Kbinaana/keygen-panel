@@ -31,19 +31,12 @@ function getKeyStatus($k) {
     return 'active';
 }
 
-// Parse URL path
-$requestUri = $_SERVER['REQUEST_URI'];
-$path = parse_url($requestUri, PHP_URL_PATH);
-$path = rtrim($path, '/');
+$key = $_GET['key'] ?? '';
+$action = $_GET['action'] ?? '';
 
-// Route: /api/validate
-if (strpos($path, '/api/validate') !== false || strpos($path, '/validate') !== false) {
-    $key = $_GET['key'] ?? '';
+// KEY VALIDATION - triggered if key param is present
+if (!empty($key)) {
     $format = $_GET['format'] ?? '';
-
-    if (empty($key)) {
-        die(json_encode(['status' => false, 'reason' => 'No key provided']));
-    }
 
     $db = loadDB();
     $parts = explode('-', $key);
@@ -60,9 +53,8 @@ if (strpos($path, '/api/validate') !== false || strpos($path, '/validate') !== f
     $status = $dbKey ? getKeyStatus($dbKey) : 'unknown';
 
     if ($dbKey && $status === 'active') {
-        $dbKey['lastUsedAt'] = round(microtime(true) * 1000);
         foreach ($db as &$k) {
-            if ($k['key'] === $key) { $k['lastUsedAt'] = $dbKey['lastUsedAt']; break; }
+            if ($k['key'] === $key) { $k['lastUsedAt'] = round(microtime(true) * 1000); break; }
         }
         saveDB($db);
     }
@@ -93,66 +85,57 @@ if (strpos($path, '/api/validate') !== false || strpos($path, '/validate') !== f
     exit;
 }
 
-// Route: /api/sync (POST) - sync keys from KeyMaster panel
-if (strpos($path, '/api/sync') !== false) {
-    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-        die(json_encode(['status' => false, 'reason' => 'POST required']));
-    }
+// POST ACTIONS - sync or add
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $input = json_decode(file_get_contents('php://input'), true);
     $secret = $input['secret'] ?? '';
-    $keys = $input['keys'] ?? [];
-
-    if ($secret !== SECRET_KEY) {
-        die(json_encode(['status' => false, 'reason' => 'Unauthorized']));
-    }
-    if (!is_array($keys)) {
-        die(json_encode(['status' => false, 'reason' => 'Invalid data']));
-    }
-
-    saveDB($keys);
-    echo json_encode(['status' => true, 'reason' => 'Synced ' . count($keys) . ' keys']);
-    exit;
-}
-
-// Route: /api/key/add (POST)
-if (strpos($path, '/api/key/add') !== false) {
-    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-        die(json_encode(['status' => false, 'reason' => 'POST required']));
-    }
-    $input = json_decode(file_get_contents('php://input'), true);
-    $secret = $input['secret'] ?? '';
-    $key = $input['key'] ?? '';
+    $action = $input['action'] ?? $action;
 
     if ($secret !== SECRET_KEY) {
         http_response_code(403);
         die(json_encode(['status' => false, 'reason' => 'Unauthorized']));
     }
-    if (empty($key)) {
-        die(json_encode(['status' => false, 'reason' => 'No key']));
-    }
 
-    $db = loadDB();
-    foreach ($db as $k) {
-        if ($k['key'] === $key) {
-            die(json_encode(['status' => false, 'reason' => 'Key exists']));
+    // SYNC keys
+    if ($action === 'sync') {
+        $keys = $input['keys'] ?? [];
+        if (!is_array($keys)) {
+            die(json_encode(['status' => false, 'reason' => 'Invalid data']));
         }
+        saveDB($keys);
+        echo json_encode(['status' => true, 'reason' => 'Synced ' . count($keys) . ' keys']);
+        exit;
     }
 
-    $expiryDays = intval($input['expiryDays'] ?? 0);
-    $db[] = [
-        'id' => uniqid(),
-        'key' => $key,
-        'serial' => 0,
-        'user' => $input['user'] ?? '',
-        'status' => $input['status'] ?? 'active',
-        'expiresAt' => $expiryDays > 0 ? (time() + $expiryDays * 86400) * 1000 : null,
-        'createdAt' => round(microtime(true) * 1000),
-        'lastUsedAt' => null
-    ];
-    saveDB($db);
+    // ADD key
+    if ($action === 'add') {
+        $newKey = $input['key'] ?? '';
+        if (empty($newKey)) {
+            die(json_encode(['status' => false, 'reason' => 'No key']));
+        }
+        $db = loadDB();
+        foreach ($db as $k) {
+            if ($k['key'] === $newKey) {
+                die(json_encode(['status' => false, 'reason' => 'Key exists']));
+            }
+        }
+        $expiryDays = intval($input['expiryDays'] ?? 0);
+        $db[] = [
+            'id' => uniqid(),
+            'key' => $newKey,
+            'serial' => 0,
+            'user' => $input['user'] ?? '',
+            'status' => $input['status'] ?? 'active',
+            'expiresAt' => $expiryDays > 0 ? (time() + $expiryDays * 86400) * 1000 : null,
+            'createdAt' => round(microtime(true) * 1000),
+            'lastUsedAt' => null
+        ];
+        saveDB($db);
+        echo json_encode(['status' => true, 'reason' => 'Key added']);
+        exit;
+    }
 
-    echo json_encode(['status' => true, 'reason' => 'Key added']);
-    exit;
+    die(json_encode(['status' => false, 'reason' => 'Unknown action']));
 }
 
 // Default: status page
@@ -161,8 +144,8 @@ echo json_encode([
     'status' => true,
     'message' => 'KeyMaster PHP API is running',
     'endpoints' => [
-        'GET /api/validate?key=KEY&format=json' => 'Validate a key',
-        'POST /api/sync' => 'Sync keys (JSON body: {secret, keys})',
-        'POST /api/key/add' => 'Add a key (JSON body: {secret, key, user, expiryDays, status})'
+        'GET ?key=KEY&format=json' => 'Validate a key',
+        'POST {action:sync, secret, keys}' => 'Sync keys',
+        'POST {action:add, secret, key, user, expiryDays}' => 'Add a key'
     ]
 ]);

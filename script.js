@@ -514,7 +514,7 @@ async function syncToPhp() {
         const res = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ secret: getSecret(), keys: db })
+            body: JSON.stringify({ secret: getSecret(), keys: db, action: 'sync' })
         });
         const data = await res.json();
         if (data.status) {
@@ -531,9 +531,8 @@ async function testPhpConnection() {
     const url = getPhpUrl();
     if (!url) return showToast('Enter PHP server URL first', 'error');
     try {
-        const baseUrl = url.replace(/\/[^/]*$/, '') + '/api.php';
-        const testUrl = url.includes('?') ? url.split('?')[0] : url;
-        const res = await fetch(testUrl + '?key=TEST&format=json');
+        const testUrl = (url + '?key=TEST&format=json').replace(/[?&]+/, '?');
+        const res = await fetch(testUrl);
         const data = await res.json();
         if (data && typeof data.status !== 'undefined') {
             showToast('Server connected! Response: ' + JSON.stringify(data).substring(0, 50), 'success');
