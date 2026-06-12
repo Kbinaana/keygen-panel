@@ -399,14 +399,14 @@ input[readonly] { color: var(--text-muted); cursor: not-allowed; }
 
 .table-row {
     display: grid;
-    grid-template-columns: 28px minmax(120px, 1.5fr) 90px 70px 75px 75px 100px;
+    grid-template-columns: 28px minmax(120px, 1.5fr) 80px 70px 70px 100px;
     padding: 0.5rem 0.65rem;
     font-size: 0.78rem;
     align-items: center;
     gap: 0.3rem;
     border-bottom: 1px solid var(--border);
     transition: background 0.1s;
-    min-width: 600px;
+    min-width: 580px;
 }
 
 .table-row:hover { background: var(--bg-card); }
@@ -653,7 +653,7 @@ hr { border: none; border-top: 1px solid var(--border); margin: 0.75rem 0; }
     .form-grid { grid-template-columns: 1fr; }
     .form-row { flex-direction: column; }
     .toolbar { flex-direction: column; }
-    .table-row { grid-template-columns: 28px minmax(100px, 1fr) 60px 70px; }
+    .table-row { grid-template-columns: 28px minmax(100px, 1fr) 60px 60px; }
     .validate-input-row { flex-direction: column; }
     .url-example { flex-direction: column; }
     .modal-content { width: 95%; }

@@ -175,6 +175,19 @@ function clearOutput() {
 
 // ===== MANAGE =====
 
+function getLastUsedStr(k) {
+    if (!k.lastUsedAt) return 'Never';
+    const diff = Date.now() - k.lastUsedAt;
+    if (diff < 60000) return 'Now';
+    if (diff < 3600000) return `${Math.floor(diff/60000)}m ago`;
+    if (diff < 86400000) return `${Math.floor(diff/3600000)}h ago`;
+    return `${Math.floor(diff/86400000)}d ago`;
+}
+
+function isOnline(k) {
+    return k.lastUsedAt && (Date.now() - k.lastUsedAt) < 86400000;
+}
+
 function renderManageTable() {
     const container = document.getElementById('manageTable');
     const searchTerm = (document.getElementById('searchInput').value || '').toLowerCase();
@@ -188,12 +201,15 @@ function renderManageTable() {
         filtered = filtered.filter(k => k.key.toLowerCase().includes(searchTerm) || k.user.toLowerCase().includes(searchTerm));
     }
 
+    const activeUsers = new Set(filtered.filter(k => getKeyStatus(k) === 'active' && k.user).map(k => k.user));
+    const onlineUsers = new Set(filtered.filter(k => getKeyStatus(k) === 'active' && k.user && isOnline(k)).map(k => k.user));
+
     document.getElementById('navBadge').textContent = filtered.length;
     document.getElementById('navBadge').style.display = filtered.length ? 'inline' : 'none';
 
     let html = `<div class="table-row header">
         <input type="checkbox" id="selectAll">
-        <span>Key</span><span>User</span><span>Status</span><span>Expiry</span><span>Created</span><span>Actions</span>
+        <span>Key</span><span>User</span><span>Status</span><span>Last Used</span><span>Expiry</span><span>Actions</span>
     </div>`;
 
     if (!filtered.length) {
@@ -204,13 +220,15 @@ function renderManageTable() {
 
     for (const k of filtered) {
         const status = getKeyStatus(k);
+        const online = status === 'active' && isOnline(k);
+        const lastUsed = getLastUsedStr(k);
         html += `<div class="table-row" data-id="${k.id}">
             <input type="checkbox" class="row-checkbox" value="${k.id}">
             <span class="key-cell">${k.key}</span>
-            <span class="user-cell">${k.user || '--'}</span>
+            <span class="user-cell">${k.user ? (online ? '🟢 ' : '⚪ ') + k.user : '--'}</span>
             <span class="status-cell status-${status}">${status}</span>
+            <span class="date-cell">${lastUsed}</span>
             <span class="date-cell">${k.expiresAt ? new Date(k.expiresAt).toLocaleDateString() : '--'}</span>
-            <span class="date-cell">${new Date(k.createdAt).toLocaleDateString()}</span>
             <span class="action-cell">
                 <button class="btn btn-sm edit-btn" data-id="${k.id}">Edit</button>
                 <button class="btn btn-sm toggle-btn" data-id="${k.id}">${status === 'revoked' ? 'Activate' : 'Revoke'}</button>
@@ -349,17 +367,28 @@ async function validateKey() {
         return;
     }
     const dbKey = db.find(k => k.key === input);
+    if (dbKey && getKeyStatus(dbKey) === 'active') {
+        dbKey.lastUsedAt = Date.now();
+        dbKey.lastUsedIP = document.getElementById('validateInput').value ? 'web' : dbKey.lastUsedIP;
+        saveDB();
+    }
+
     let msg = 'Valid signature! ';
     if (dbKey) {
         const status = getKeyStatus(dbKey);
         if (status === 'revoked') msg += 'Key is REVOKED.';
         else if (status === 'expired') msg += 'Key is EXPIRED.';
         else msg += `Key is ACTIVE. User: ${dbKey.user || 'unassigned'}`;
+        if (dbKey.lastUsedAt) {
+            const daysAgo = Math.floor((Date.now() - dbKey.lastUsedAt) / 86400000);
+            msg += ` | Last used: ${daysAgo === 0 ? 'Today' : daysAgo + 'd ago'}`;
+        }
     } else {
         msg += 'Key not found in database (signature valid).';
     }
     result.className = 'validate-result valid';
     result.textContent = msg;
+    renderManageTable();
 }
 
 // ===== API =====
@@ -380,12 +409,18 @@ async function handleApiRequest() {
         const dbKey = db.find(k => k.key === key);
         const status = dbKey ? getKeyStatus(dbKey) : 'unknown';
 
+        if (dbKey && status === 'active') {
+            dbKey.lastUsedAt = Date.now();
+            saveDB();
+        }
+
         const response = {
             valid: sigValid && status === 'active',
             signatureValid: sigValid,
             status: dbKey ? status : 'not_found',
             key: key,
             user: dbKey ? (dbKey.user || null) : null,
+            lastUsed: dbKey && dbKey.lastUsedAt ? new Date(dbKey.lastUsedAt).toISOString() : null,
             expiresAt: dbKey && dbKey.expiresAt ? new Date(dbKey.expiresAt).toISOString() : null,
             checkedAt: new Date().toISOString()
         };
@@ -476,10 +511,16 @@ function updateStats() {
     const active = db.filter(k => getKeyStatus(k) === 'active').length;
     const expired = db.filter(k => getKeyStatus(k) === 'expired').length;
     const revoked = db.filter(k => getKeyStatus(k) === 'revoked').length;
+    const activeUsers = new Set(db.filter(k => getKeyStatus(k) === 'active' && k.user).map(k => k.user)).size;
+    const onlineNow = new Set(db.filter(k => getKeyStatus(k) === 'active' && k.user && isOnline(k)).map(k => k.user)).size;
+    const ucl = document.getElementById('userCountLabel');
+    if (ucl) ucl.textContent = `👤 ${activeUsers} active users (${onlineNow} online)`;
     document.getElementById('msActive').textContent = active;
     document.getElementById('msExpired').textContent = expired;
     document.getElementById('msRevoked').textContent = revoked;
-    document.getElementById('dbInfo').textContent = `${total} keys stored (${active} active, ${expired} expired, ${revoked} revoked)`;
+    const usersEl = document.getElementById('msUsers');
+    if (usersEl) usersEl.textContent = activeUsers;
+    document.getElementById('dbInfo').textContent = `${total} keys stored (${active} active, ${activeUsers} users, ${onlineNow} online)`;
 }
 
 // ===== EVENT LISTENERS =====
