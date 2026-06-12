@@ -3,27 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Secure KeyGen Panel</title>
+    <title>KeyMaster - Key Management Panel</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>Secure KeyGen Panel</h1>
-            <p>License Key Generator &amp; Validator</p>
+            <h1>KeyMaster Panel</h1>
+            <p>Full License Key Management System</p>
+        </div>
+
+        <div class="stats">
+            <div class="stat-card"><span class="stat-num" id="statTotal">0</span><span>Total</span></div>
+            <div class="stat-card active"><span class="stat-num" id="statActive">0</span><span>Active</span></div>
+            <div class="stat-card expired"><span class="stat-num" id="statExpired">0</span><span>Expired</span></div>
+            <div class="stat-card revoked"><span class="stat-num" id="statRevoked">0</span><span>Revoked</span></div>
         </div>
 
         <div class="tabs">
             <button class="tab-btn active" data-tab="generate">Generate</button>
+            <button class="tab-btn" data-tab="manage">Manage Keys</button>
             <button class="tab-btn" data-tab="validate">Validate</button>
             <button class="tab-btn" data-tab="settings">Settings</button>
         </div>
 
+        <!-- GENERATE TAB -->
         <div id="generateTab" class="tab-content active">
             <div class="controls">
                 <div class="control-row">
                     <div class="control-group">
-                        <label for="format">Key Format</label>
+                        <label>Key Format</label>
                         <select id="format">
                             <option value="XXXXX-XXXXX-XXXXX-XXXXX">XXXXX-XXXXX-XXXXX-XXXXX</option>
                             <option value="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX">UUID Style</option>
@@ -32,17 +41,17 @@
                         </select>
                     </div>
                     <div class="control-group">
-                        <label for="count">Count</label>
+                        <label>Count</label>
                         <input type="number" id="count" min="1" max="500" value="5">
                     </div>
                 </div>
                 <div class="control-row">
                     <div class="control-group">
-                        <label for="prefix">Prefix</label>
+                        <label>Prefix</label>
                         <input type="text" id="prefix" placeholder="e.g. MOD-">
                     </div>
                     <div class="control-group">
-                        <label for="serialStart">Serial # Start</label>
+                        <label>Serial # Start</label>
                         <input type="number" id="serialStart" min="0" value="1">
                     </div>
                 </div>
@@ -51,6 +60,7 @@
                         <label>Expiry</label>
                         <select id="expiry">
                             <option value="0">No expiry</option>
+                            <option value="7">7 days</option>
                             <option value="30">30 days</option>
                             <option value="90">90 days</option>
                             <option value="180">6 months</option>
@@ -65,12 +75,17 @@
                         </label>
                     </div>
                 </div>
+                <div class="control-group">
+                    <label>Assign to User (optional)</label>
+                    <input type="text" id="assignUser" placeholder="e.g. gamer123">
+                </div>
                 <button id="generateBtn">Generate Keys</button>
             </div>
 
             <div class="output">
                 <div class="output-header">
                     <span id="keyCount">0 keys</span>
+                    <button id="saveKeysBtn" disabled>Save to Database</button>
                     <button id="exportBtn" disabled>Export .txt</button>
                     <button id="copyAllBtn" disabled>Copy All</button>
                     <button id="clearBtn">Clear</button>
@@ -79,10 +94,114 @@
             </div>
         </div>
 
+        <!-- MANAGE TAB -->
+        <div id="manageTab" class="tab-content">
+            <div class="manage-toolbar">
+                <div class="control-group search-box">
+                    <input type="text" id="searchInput" placeholder="Search by key, user, or serial...">
+                </div>
+                <div class="manage-actions">
+                    <select id="bulkAction">
+                        <option value="">Bulk Action</option>
+                        <option value="activate">Activate</option>
+                        <option value="revoke">Revoke</option>
+                        <option value="delete">Delete</option>
+                    </select>
+                    <button id="applyBulkBtn">Apply</button>
+                    <button id="addCustomBtn">+ Add Custom Key</button>
+                </div>
+            </div>
+
+            <div class="filter-tabs">
+                <button class="filter-btn active" data-filter="all">All</button>
+                <button class="filter-btn" data-filter="active">Active</button>
+                <button class="filter-btn" data-filter="expired">Expired</button>
+                <button class="filter-btn" data-filter="revoked">Revoked</button>
+            </div>
+
+            <div id="manageTable" class="manage-table"></div>
+
+            <div id="addCustomModal" class="modal">
+                <div class="modal-content">
+                    <span class="close-modal">&times;</span>
+                    <h3>Add Custom Key</h3>
+                    <div class="controls">
+                        <div class="control-group">
+                            <label>Key</label>
+                            <input type="text" id="customKeyInput" placeholder="Enter your key...">
+                        </div>
+                        <div class="control-row">
+                            <div class="control-group">
+                                <label>User</label>
+                                <input type="text" id="customUser" placeholder="username">
+                            </div>
+                            <div class="control-group">
+                                <label>Expiry</label>
+                                <select id="customExpiry">
+                                    <option value="0">No expiry</option>
+                                    <option value="7">7 days</option>
+                                    <option value="30">30 days</option>
+                                    <option value="90">90 days</option>
+                                    <option value="365">1 year</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>Status</label>
+                            <select id="customStatus">
+                                <option value="active">Active</option>
+                                <option value="revoked">Revoked</option>
+                            </select>
+                        </div>
+                        <button id="saveCustomBtn">Add Key</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="editModal" class="modal">
+                <div class="modal-content">
+                    <span class="close-modal">&times;</span>
+                    <h3>Edit Key</h3>
+                    <div class="controls">
+                        <div class="control-group">
+                            <label>Key</label>
+                            <input type="text" id="editKeyInput" readonly>
+                        </div>
+                        <div class="control-row">
+                            <div class="control-group">
+                                <label>User</label>
+                                <input type="text" id="editUser" placeholder="username">
+                            </div>
+                            <div class="control-group">
+                                <label>Status</label>
+                                <select id="editStatus">
+                                    <option value="active">Active</option>
+                                    <option value="revoked">Revoked</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>Expiry</label>
+                            <select id="editExpiry">
+                                <option value="0">No expiry</option>
+                                <option value="7">7 days</option>
+                                <option value="30">30 days</option>
+                                <option value="90">90 days</option>
+                                <option value="180">6 months</option>
+                                <option value="365">1 year</option>
+                            </select>
+                        </div>
+                        <button id="saveEditBtn">Save Changes</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- VALIDATE TAB -->
         <div id="validateTab" class="tab-content">
             <div class="controls">
                 <div class="control-group">
-                    <label for="validateInput">Paste Key to Validate</label>
+                    <label>Paste Key to Validate</label>
                     <input type="text" id="validateInput" placeholder="e.g. ABCDE-FGHIJ-KLMNO-PQRST">
                 </div>
                 <button id="validateBtn">Validate Key</button>
@@ -90,15 +209,25 @@
             <div id="validateResult"></div>
         </div>
 
+        <!-- SETTINGS TAB -->
         <div id="settingsTab" class="tab-content">
             <div class="controls">
                 <div class="control-group">
-                    <label for="secretKey">HMAC Secret Key (shared secret)</label>
+                    <label>HMAC Secret Key</label>
                     <input type="text" id="secretKey" placeholder="Enter a secret key...">
-                    <span class="hint">Same secret se sign &amp; validate hoga. Secret change karne se purane keys invalid ho jayenge.</span>
+                    <span class="hint">Same secret se sign & validate hoga. Secret change karne se purane keys invalid ho jayenge.</span>
                 </div>
                 <button id="saveSecretBtn">Save Secret</button>
                 <button id="randomSecretBtn">Generate Random Secret</button>
+                <hr>
+                <div class="control-group">
+                    <label>Database</label>
+                    <span class="hint" id="dbInfo">0 keys stored</span>
+                </div>
+                <button id="exportDbBtn">Export Database (JSON)</button>
+                <button id="importDbBtn">Import Database (JSON)</button>
+                <input type="file" id="importFileInput" accept=".json" style="display:none">
+                <button id="clearAllBtn" class="danger-btn">Delete All Keys</button>
             </div>
         </div>
     </div>
