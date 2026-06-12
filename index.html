@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KeyGen Panel</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔑 KeyGen Panel</h1>
+            <p>License Key Generator</p>
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <label for="format">Key Format</label>
+                <select id="format">
+                    <option value="XXXXX-XXXXX-XXXXX-XXXXX">XXXXX-XXXXX-XXXXX-XXXXX</option>
+                    <option value="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX">UUID Style</option>
+                    <option value="XXXXXX-XXXXXX-XXXXXX-XXXXXX-XXXXXX">XXXXXX-XXXXXX-XXXXXX-XXXXXX-XXXXXX</option>
+                    <option value="XXXXXX-XXXXXX-XXXXXX">XXXXXX-XXXXXX-XXXXXX</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="count">Number of Keys</label>
+                <input type="number" id="count" min="1" max="100" value="5">
+            </div>
+
+            <div class="control-group">
+                <label for="prefix">Prefix (optional)</label>
+                <input type="text" id="prefix" placeholder="e.g. MOD-">
+            </div>
+
+            <button id="generateBtn">Generate Keys</button>
+        </div>
+
+        <div class="output">
+            <div class="output-header">
+                <span id="keyCount">0 keys generated</span>
+                <button id="copyAllBtn" disabled>Copy All</button>
+                <button id="clearBtn">Clear</button>
+            </div>
+            <textarea id="keyOutput" readonly placeholder="Generated keys will appear here..."></textarea>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

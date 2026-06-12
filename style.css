@@ -1,0 +1,150 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #0d1117;
+    color: #c9d1d9;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.container {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 12px;
+    padding: 2rem;
+    width: 90%;
+    max-width: 640px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+
+.header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.header h1 {
+    font-size: 1.8rem;
+    color: #58a6ff;
+    margin-bottom: 0.25rem;
+}
+
+.header p {
+    color: #8b949e;
+    font-size: 0.9rem;
+}
+
+.controls {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.control-group label {
+    font-size: 0.85rem;
+    color: #8b949e;
+    font-weight: 500;
+}
+
+select, input[type="number"], input[type="text"] {
+    background: #0d1117;
+    color: #c9d1d9;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 0.6rem 0.8rem;
+    font-size: 0.95rem;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+select:focus, input:focus {
+    border-color: #58a6ff;
+}
+
+#generateBtn {
+    background: #238636;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 0.75rem;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+    margin-top: 0.5rem;
+}
+
+#generateBtn:hover {
+    background: #2ea043;
+}
+
+.output {
+    background: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.output-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.output-header span {
+    flex: 1;
+    font-size: 0.85rem;
+    color: #8b949e;
+}
+
+.output-header button {
+    background: #21262d;
+    color: #c9d1d9;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 0.4rem 0.8rem;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.output-header button:hover:not(:disabled) {
+    background: #30363d;
+}
+
+.output-header button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+#keyOutput {
+    width: 100%;
+    min-height: 200px;
+    background: transparent;
+    color: #7ee787;
+    border: none;
+    outline: none;
+    resize: vertical;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    padding: 0.25rem;
+}
+
+#keyOutput::placeholder {
+    color: #484f58;
+}
