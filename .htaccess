@@ -1,0 +1,4 @@
+RewriteEngine On
+RewriteRule ^api/validate$ api.php [QSA,L]
+RewriteRule ^api/sync$ api.php [QSA,L]
+RewriteRule ^api/key/add$ api.php [QSA,L]

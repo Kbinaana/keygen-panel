@@ -199,9 +199,9 @@
                             <h3>REST API Endpoint</h3>
                             <div class="endpoint-card">
                                 <span class="method get">GET</span>
-                                <code id="apiUrlDisplay">https://keymaster-api.onrender.com/api/validate?key=&lt;KEY&gt;&amp;format=json</code>
+                                <code id="apiUrlDisplay">https://yourdomain.com/api.php?key=&lt;KEY&gt;&amp;format=json</code>
                             </div>
-                            <p class="api-desc">Deploy your own server with <code>server.js</code> from this repo! Railway, Render, or any VPS.</p>
+                            <p class="api-desc">Use <code>api.php</code> (Node.js) or <code>server.php</code> — deploy on any PHP hosting!</p>
                         </div>
 
                         <div class="api-section">
@@ -283,6 +283,17 @@ console.log(data)</pre>
                         <div class="btn-row">
                             <button id="saveSecretBtn" class="btn btn-primary">Save Secret</button>
                             <button id="randomSecretBtn" class="btn">Generate Random</button>
+                        </div>
+                        <hr>
+                        <hr>
+                        <div class="form-group">
+                            <label>PHP Server URL (for sync)</label>
+                            <input type="text" id="phpServerUrl" placeholder="https://yourdomain.com/api.php">
+                            <p class="form-hint">Apne PHP hosting ka URL daalo, phir Sync karo — saari keys server mein add ho jayengi.</p>
+                        </div>
+                        <div class="btn-row">
+                            <button id="syncToPhpBtn" class="btn">🔄 Sync Keys to PHP Server</button>
+                            <button id="testPhpBtn" class="btn">🔍 Test Connection</button>
                         </div>
                         <hr>
                         <div class="form-group">

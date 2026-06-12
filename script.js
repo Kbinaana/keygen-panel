@@ -502,6 +502,49 @@ function handleImport(e) {
     reader.readAsText(file);
 }
 
+function getPhpUrl() {
+    return (document.getElementById('phpServerUrl').value || '').trim();
+}
+
+async function syncToPhp() {
+    const url = getPhpUrl();
+    if (!url) return showToast('Enter PHP server URL first', 'error');
+    if (!db.length) return showToast('No keys to sync', 'error');
+    try {
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ secret: getSecret(), keys: db })
+        });
+        const data = await res.json();
+        if (data.status) {
+            showToast('Synced ' + db.length + ' keys to server!', 'success');
+        } else {
+            showToast('Sync failed: ' + (data.reason || 'unknown'), 'error');
+        }
+    } catch (e) {
+        showToast('Connection error: ' + e.message, 'error');
+    }
+}
+
+async function testPhpConnection() {
+    const url = getPhpUrl();
+    if (!url) return showToast('Enter PHP server URL first', 'error');
+    try {
+        const baseUrl = url.replace(/\/[^/]*$/, '') + '/api.php';
+        const testUrl = url.includes('?') ? url.split('?')[0] : url;
+        const res = await fetch(testUrl + '?key=TEST&format=json');
+        const data = await res.json();
+        if (data && typeof data.status !== 'undefined') {
+            showToast('Server connected! Response: ' + JSON.stringify(data).substring(0, 50), 'success');
+        } else {
+            showToast('Server responded but unexpected format', 'error');
+        }
+    } catch (e) {
+        showToast('Connection error: ' + e.message, 'error');
+    }
+}
+
 function clearAllKeys() {
     if (!db.length) return;
     if (!confirm('Delete ALL keys? This cannot be undone!')) return;
@@ -587,6 +630,9 @@ document.getElementById('copyNodeBtn').addEventListener('click', () => {
 document.getElementById('apiTestBtn').addEventListener('click', apiTest);
 document.getElementById('apiTestInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') apiTest(); });
 
+document.getElementById('syncToPhpBtn').addEventListener('click', syncToPhp);
+document.getElementById('testPhpBtn').addEventListener('click', testPhpConnection);
+
 document.querySelectorAll('.filter-pills .pill').forEach(btn => {
     btn.addEventListener('click', () => {
         document.querySelectorAll('.filter-pills .pill').forEach(b => b.classList.remove('active'));
@@ -619,6 +665,11 @@ document.addEventListener('keydown', (e) => {
 });
 
 document.getElementById('secretKey').value = getSecret();
+const savedUrl = localStorage.getItem('php_server_url');
+if (savedUrl) document.getElementById('phpServerUrl').value = savedUrl;
+document.getElementById('phpServerUrl').addEventListener('change', () => {
+    localStorage.setItem('php_server_url', document.getElementById('phpServerUrl').value);
+});
 
 // ===== INIT =====
 
