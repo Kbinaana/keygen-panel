@@ -1,408 +1,292 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KeyMaster — License Management System</title>
-    <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>KeyMaster — License Management System</title>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="app">
-        <aside class="sidebar">
-            <div class="brand">
-                <div class="brand-icon">🔑</div>
-                <div class="brand-text">
-                    <h1>KeyMaster</h1>
-                    <span>License Management</span>
-                </div>
-            </div>
-            <nav class="nav">
-                <button class="nav-btn active" data-tab="generate">
-                    <span class="nav-icon">⚡</span> Generate
-                </button>
-                <button class="nav-btn" data-tab="manage">
-                    <span class="nav-icon">📋</span> Keys
-                    <span class="badge" id="navBadge" style="display:none">0</span>
-                </button>
-                <button class="nav-btn" data-tab="validate">
-                    <span class="nav-icon">✓</span> Validate
-                </button>
-                <button class="nav-btn" data-tab="api">
-                    <span class="nav-icon">🔌</span> API
-                </button>
-                <button class="nav-btn" data-tab="settings">
-                    <span class="nav-icon">⚙</span> Settings
-                </button>
-            </nav>
-            <div class="sidebar-footer">
-                <div class="mini-stats">
-                    <div class="ms-item"><span class="ms-dot active-dot"></span><span id="msActive">0</span></div>
-                    <div class="ms-item"><span class="ms-dot expired-dot"></span><span id="msExpired">0</span></div>
-                    <div class="ms-item"><span class="ms-dot revoked-dot"></span><span id="msRevoked">0</span></div>
-                    <div class="ms-item"><span title="Active Users">👤</span><span id="msUsers">0</span></div>
-                </div>
-            </div>
-        </aside>
 
-        <main class="main">
-            <!-- GENERATE TAB -->
-            <div id="generateTab" class="tab-content active">
-                <div class="panel">
-                    <div class="panel-header">
-                        <h2>Generate Keys</h2>
-                        <p>Create new license keys with custom settings</p>
-                    </div>
-                    <div class="panel-body">
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label>Key Format</label>
-                                <select id="format">
-                                    <option value="XXXXX-XXXXX-XXXXX-XXXXX">XXXXX-XXXXX-XXXXX-XXXXX</option>
-                                    <option value="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX">UUID Style</option>
-                                    <option value="XXXXXX-XXXXXX-XXXXXX-XXXXXX-XXXXXX">Long (5×6)</option>
-                                    <option value="XXXXXX-XXXXXX-XXXXXX">Short (3×6)</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>Count</label>
-                                <input type="number" id="count" min="1" max="500" value="5">
-                            </div>
-                            <div class="form-group">
-                                <label>Prefix</label>
-                                <input type="text" id="prefix" placeholder="e.g. MOD-">
-                            </div>
-                            <div class="form-group">
-                                <label>Serial Start</label>
-                                <input type="number" id="serialStart" min="0" value="1">
-                            </div>
-                            <div class="form-group">
-                                <label>Expiry</label>
-                                <select id="expiry">
-                                    <option value="0">No expiry</option>
-                                    <option value="7">7 days</option>
-                                    <option value="30">30 days</option>
-                                    <option value="90">90 days</option>
-                                    <option value="180">6 months</option>
-                                    <option value="365">1 year</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>HMAC Sign</label>
-                                <label class="toggle">
-                                    <input type="checkbox" id="hmacToggle" checked>
-                                    <span class="slider"></span>
-                                </label>
-                            </div>
-                            <div class="form-group">
-                                <label>Assign User</label>
-                                <input type="text" id="assignUser" placeholder="username">
-                            </div>
-                            <div class="form-group form-action">
-                                <button id="generateBtn" class="btn btn-primary btn-block">Generate Keys</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+<div id="bgFx"></div>
 
-                <div class="panel">
-                    <div class="panel-header">
-                        <h2>Generated Keys</h2>
-                        <div class="panel-actions">
-                            <span id="keyCount" class="count-label">0 keys</span>
-                            <button id="saveKeysBtn" class="btn btn-sm" disabled>💾 Save</button>
-                            <button id="exportBtn" class="btn btn-sm" disabled>📥 Export</button>
-                            <button id="copyAllBtn" class="btn btn-sm" disabled>📋 Copy</button>
-                            <button id="clearBtn" class="btn btn-sm btn-ghost">Clear</button>
-                        </div>
-                    </div>
-                    <div class="panel-body">
-                        <div id="keyList" class="key-list"></div>
-                    </div>
-                </div>
-            </div>
+<div id="toast" class="toast"></div>
 
-            <!-- MANAGE TAB -->
-            <div id="manageTab" class="tab-content">
-                <div class="panel">
-                    <div class="panel-header">
-                        <h2>Key Database</h2>
-                        <div class="panel-actions">
-                            <span class="count-label" id="userCountLabel">👤 0 active users</span>
-                            <button id="addCustomBtn" class="btn btn-primary btn-sm">+ Add Custom Key</button>
-                        </div>
-                    </div>
-                    <div class="panel-body">
-                        <div class="toolbar">
-                            <div class="search-wrap">
-                                <span class="search-icon">🔍</span>
-                                <input type="text" id="searchInput" placeholder="Search by key, user, serial...">
-                            </div>
-                            <div class="toolbar-actions">
-                                <select id="bulkAction" class="select-sm">
-                                    <option value="">Bulk Action</option>
-                                    <option value="activate">✓ Activate</option>
-                                    <option value="revoke">✕ Revoke</option>
-                                    <option value="delete">🗑 Delete</option>
-                                </select>
-                                <button id="applyBulkBtn" class="btn btn-sm">Apply</button>
-                            </div>
-                        </div>
-                        <div class="filter-pills">
-                            <button class="pill active" data-filter="all">All</button>
-                            <button class="pill pill-green" data-filter="active">Active</button>
-                            <button class="pill pill-yellow" data-filter="expired">Expired</button>
-                            <button class="pill pill-red" data-filter="revoked">Revoked</button>
-                        </div>
-                        <div id="manageTable" class="table-wrap"></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- VALIDATE TAB -->
-            <div id="validateTab" class="tab-content">
-                <div class="panel">
-                    <div class="panel-header">
-                        <h2>Validate Key</h2>
-                        <p>Check if a key is authentic and active</p>
-                    </div>
-                    <div class="panel-body">
-                        <div class="validate-input-row">
-                            <input type="text" id="validateInput" placeholder="Paste your key here...">
-                            <button id="validateBtn" class="btn btn-primary">Validate</button>
-                        </div>
-                        <div id="validateResult" class="validate-result"></div>
-                    </div>
-                </div>
-                <div class="panel">
-                    <div class="panel-header">
-                        <h2>Quick Validate via URL</h2>
-                        <p>Append <code>?key=YOUR_KEY</code> to the page URL to auto-validate</p>
-                    </div>
-                    <div class="panel-body">
-                        <div class="url-example">
-                            <code id="urlExample">https://kbinaana.github.io/keygen-panel/?key=YOUR_KEY_HERE</code>
-                            <button class="btn btn-sm" id="copyUrlExample">Copy URL</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- API TAB -->
-            <div id="apiTab" class="tab-content">
-                <div class="panel">
-                    <div class="panel-header">
-                        <h2>🔌 API Reference</h2>
-                        <p>Validate keys programmatically from your app</p>
-                    </div>
-                    <div class="panel-body api-content">
-                        <div class="api-section">
-                            <h3>REST API Endpoint</h3>
-                            <div class="endpoint-card">
-                                <span class="method get">GET</span>
-                                <code id="apiUrlDisplay">https://yourdomain.com/api.php?key=&lt;KEY&gt;&amp;format=json</code>
-                            </div>
-                            <p class="api-desc">Use <code>api.php</code> (Node.js) or <code>server.php</code> — deploy on any PHP hosting!</p>
-                        </div>
-
-                        <div class="api-section">
-                            <h3>Response Format</h3>
-                            <pre class="code-block" id="apiResponseExample">{
-  "valid": true,
-  "status": "active",
-  "key": "ABCDE-FGHIJ-KLMNO-PQRST-XXXX",
-  "user": "gamer123",
-  "expiresAt": "2026-12-31",
-  "checkedAt": "2026-06-12T12:00:00Z"
-}</pre>
-                        </div>
-
-                        <div class="api-section">
-                            <h3>cURL Example</h3>
-                            <pre class="code-block" id="curlExample">curl "https://kbinaana.github.io/keygen-panel/?key=ABCDE-FGHIJ-KLMNO-PQRST-XXXX&format=json"</pre>
-                            <button class="btn btn-sm" id="copyCurlBtn">📋 Copy cURL</button>
-                        </div>
-
-                        <div class="api-section">
-                            <h3>JavaScript / Fetch</h3>
-                            <pre class="code-block" id="fetchExample">fetch('https://kbinaana.github.io/keygen-panel/?key=ABCDE-FGHIJ-KLMNO-PQRST-XXXX&format=json')
-  .then(r => r.json())
-  .then(data => console.log(data));</pre>
-                            <button class="btn btn-sm" id="copyFetchBtn">📋 Copy Fetch</button>
-                        </div>
-
-                        <div class="api-section">
-                            <h3>Python</h3>
-                            <pre class="code-block" id="pythonExample">import requests
-r = requests.get('https://kbinaana.github.io/keygen-panel/', params={'key': 'ABCDE-FGHIJ-KLMNO-PQRST-XXXX', 'format': 'json'})
-data = r.json()
-print(data)</pre>
-                            <button class="btn btn-sm" id="copyPythonBtn">📋 Copy Python</button>
-                        </div>
-
-                        <div class="api-section">
-                            <h3>Node.js</h3>
-                            <pre class="code-block" id="nodeExample">const res = await fetch('https://kbinaana.github.io/keygen-panel/?key=ABCDE-FGHIJ-KLMNO-PQRST-XXXX&format=json')
-const data = await res.json()
-console.log(data)</pre>
-                            <button class="btn btn-sm" id="copyNodeBtn">📋 Copy Node.js</button>
-                        </div>
-
-                        <div class="api-section">
-                            <h3>Webhook / Auto-Validation</h3>
-                            <p class="api-desc">Your mod loader or app can redirect users to the validation URL. The page will auto-check the key and display the result.</p>
-                            <div class="endpoint-card">
-                                <span class="method get">GET</span>
-                                <code>https://kbinaana.github.io/keygen-panel/?key=&lt;KEY&gt;</code>
-                            </div>
-                        </div>
-
-                        <div class="api-section">
-                            <h3>Test API</h3>
-                            <div class="api-test-row">
-                                <input type="text" id="apiTestInput" placeholder="Enter a key to test...">
-                                <button id="apiTestBtn" class="btn btn-primary">Test</button>
-                            </div>
-                            <pre class="code-block" id="apiTestResult" style="display:none"></pre>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- SETTINGS TAB -->
-            <div id="settingsTab" class="tab-content">
-                <div class="panel">
-                    <div class="panel-header">
-                        <h2>⚙ Settings</h2>
-                    </div>
-                    <div class="panel-body">
-                        <div class="form-group">
-                            <label>HMAC Secret Key</label>
-                            <input type="text" id="secretKey" placeholder="Enter a secret key...">
-                            <p class="form-hint">Same secret se sign aur validate hoga. Secret change se purane keys invalid ho jayenge.</p>
-                        </div>
-                        <div class="btn-row">
-                            <button id="saveSecretBtn" class="btn btn-primary">Save Secret</button>
-                            <button id="randomSecretBtn" class="btn">Generate Random</button>
-                        </div>
-                        <hr>
-                        <hr>
-                        <div class="form-group">
-                            <label>PHP Server URL (for sync)</label>
-                            <input type="text" id="phpServerUrl" placeholder="https://yourdomain.com/api.php">
-                            <p class="form-hint">Apne PHP hosting ka URL daalo, phir Sync karo — saari keys server mein add ho jayengi.</p>
-                        </div>
-                        <div class="btn-row">
-                            <button id="syncToPhpBtn" class="btn">🔄 Sync Keys to PHP Server</button>
-                            <button id="testPhpBtn" class="btn">🔍 Test Connection</button>
-                        </div>
-                        <hr>
-                        <div class="form-group">
-                            <label>Database</label>
-                            <p class="form-hint" id="dbInfo">0 keys stored</p>
-                        </div>
-                        <div class="btn-row">
-                            <button id="exportDbBtn" class="btn">📤 Export JSON</button>
-                            <button id="importDbBtn" class="btn">📥 Import JSON</button>
-                            <button id="clearAllBtn" class="btn btn-danger">🗑 Delete All</button>
-                        </div>
-                        <input type="file" id="importFileInput" accept=".json" style="display:none">
-                    </div>
-                </div>
-            </div>
-        </main>
+<div id="lockScreen" class="lock-screen hidden">
+    <div class="lock-card glow-card">
+        <div class="lock-logo">KM</div>
+        <h1 class="lock-title" id="lockTitle">KeyMaster</h1>
+        <p class="lock-sub" id="lockSub">Admin access required</p>
+        <input type="password" id="lockPass" class="input" placeholder="Password" autocomplete="off">
+        <button class="btn btn-primary btn-block" id="lockSubmit">Unlock</button>
+        <p class="lock-err" id="lockErr"></p>
     </div>
+</div>
 
-    <!-- MODALS -->
-    <div id="addCustomModal" class="modal">
-        <div class="modal-backdrop"></div>
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Add Custom Key</h3>
-                <button class="modal-close">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label>Key</label>
-                    <input type="text" id="customKeyInput" placeholder="Enter your key...">
+<div id="app" class="app hidden">
+
+    <aside id="sidebar" class="sidebar">
+        <div class="brand">
+            <div class="brand-logo">KM</div>
+            <div class="brand-name">KeyMaster<small>v2.0 · A1</small></div>
+        </div>
+        <nav class="nav">
+            <button class="nav-item active" data-view="dashboard"><span class="nav-ico">◉</span>Dashboard</button>
+            <button class="nav-item" data-view="keys"><span class="nav-ico">⌖</span>Keys <span class="pill" id="navKeyCount">0</span></button>
+            <button class="nav-item" data-view="generate"><span class="nav-ico">✚</span>Generate</button>
+            <button class="nav-item" data-view="logs"><span class="nav-ico">≡</span>Logs</button>
+            <button class="nav-item" data-view="settings"><span class="nav-ico">⚙</span>Settings</button>
+        </nav>
+        <div class="sidebar-foot">
+            <div class="sync-box">
+                <div class="sync-dot" id="syncDot"></div>
+                <div class="sync-text">
+                    <b id="syncTitle">GitHub Sync</b>
+                    <span id="syncMeta">Not configured</span>
                 </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>User</label>
-                        <input type="text" id="customUser" placeholder="username">
+            </div>
+            <button class="btn btn-ghost btn-block" id="lockNowBtn">🔒 Lock Panel</button>
+        </div>
+    </aside>
+
+    <main id="main" class="main">
+
+        <section id="view-dashboard" class="view active">
+            <header class="view-head">
+                <div>
+                    <h2>Dashboard</h2>
+                    <p class="muted" id="dashGreeting">Overview of your license system</p>
+                </div>
+                <div class="head-actions">
+                    <button class="btn" id="dashPushBtn">⇪ Push Now</button>
+                </div>
+            </header>
+            <div class="stat-grid">
+                <div class="stat card"><span class="stat-ico c-cyan">∑</span><div><b id="stTotal">0</b><span>Total Keys</span></div></div>
+                <div class="stat card"><span class="stat-ico c-green">✔</span><div><b id="stActive">0</b><span>Active</span></div></div>
+                <div class="stat card"><span class="stat-ico c-amber">⚠</span><div><b id="stExpired">0</b><span>Expired</span></div></div>
+                <div class="stat card"><span class="stat-ico c-red">✖</span><div><b id="stRevoked">0</b><span>Revoked</span></div></div>
+            </div>
+            <div class="grid-2">
+                <div class="card panel-card">
+                    <h3 class="card-title">Users</h3>
+                    <div id="dashUsers" class="list-zero muted">No users yet</div>
+                </div>
+                <div class="card panel-card">
+                    <h3 class="card-title">Recent Activity</h3>
+                    <div id="dashRecent" class="list-zero muted">No activity</div>
+                </div>
+            </div>
+            <div class="card panel-card" id="setupCard">
+                <h3 class="card-title">🚀 Setup Checklist</h3>
+                <div id="setupList"></div>
+            </div>
+        </section>
+
+        <section id="view-keys" class="view">
+            <header class="view-head">
+                <div>
+                    <h2>Keys</h2>
+                    <p class="muted" id="keysMeta">Manage your license keys</p>
+                </div>
+                <div class="head-actions">
+                    <button class="btn" id="copyActiveBtn">⧉ Copy Active</button>
+                    <button class="btn btn-primary" id="gotoGenerateBtn">+ New Key</button>
+                </div>
+            </header>
+            <div class="card panel-card">
+                <div class="toolbar">
+                    <div class="search-wrap">
+                        <span class="search-ico">⌕</span>
+                        <input class="input" id="keySearch" placeholder="Search key / user...">
                     </div>
-                    <div class="form-group">
-                        <label>Expiry</label>
-                        <select id="customExpiry">
-                            <option value="0">No expiry</option>
-                            <option value="7">7 days</option>
-                            <option value="30">30 days</option>
-                            <option value="90">90 days</option>
-                            <option value="365">1 year</option>
-                        </select>
+                    <div class="chips" id="filterChips">
+                        <button class="chip active" data-f="all">All</button>
+                        <button class="chip" data-f="active">Active</button>
+                        <button class="chip" data-f="expired">Expired</button>
+                        <button class="chip" data-f="revoked">Revoked</button>
+                    </div>
+                    <span class="muted sel-count" id="selCount"></span>
+                </div>
+                <div class="bulk-bar hidden" id="bulkBar">
+                    <button class="btn btn-sm" id="bulkRevoke">Revoke selected</button>
+                    <button class="btn btn-sm" id="bulkActivate">Activate selected</button>
+                    <button class="btn btn-sm btn-danger" id="bulkDelete">Delete selected</button>
+                </div>
+                <div class="table">
+                    <div class="table-head">
+                        <input type="checkbox" id="selectAll">
+                        <span>Key</span>
+                        <span>User</span>
+                        <span>Status</span>
+                        <span>Expiry</span>
+                        <span>Actions</span>
+                    </div>
+                    <div id="keyRows"></div>
+                </div>
+            </div>
+        </section>
+
+        <section id="view-generate" class="view">
+            <header class="view-head">
+                <div><h2>Generate Keys</h2><p class="muted">Bulk license key generator</p></div>
+            </header>
+            <div class="grid-2">
+                <div class="card panel-card">
+                    <h3 class="card-title">Template</h3>
+                    <div class="chips" id="tplChips">
+                        <button class="chip" data-tpl="nexus">NEXUS</button>
+                        <button class="chip" data-tpl="pro">PRO</button>
+                        <button class="chip" data-tpl="lite">LITE</button>
+                        <button class="chip" data-tpl="custom">Custom</button>
+                    </div>
+                    <label class="lbl">Prefix</label>
+                    <input class="input" id="genPrefix" placeholder="NEXUS" value="NEXUS" maxlength="12">
+                    <label class="lbl">Format <span class="muted">(X = random A-Z0-9)</span></label>
+                    <input class="input" id="genFormat" placeholder="XXXXX-XXXXX-XXXXX" value="XXXXX-XXXXX-XXXXX" maxlength="60">
+                    <label class="lbl">Quantity <span class="muted">(max 100)</span></label>
+                    <input class="input" id="genCount" type="number" value="1" min="1" max="100">
+                    <label class="lbl">Serial start <span class="muted">(0 = none)</span></label>
+                    <input class="input" id="genSerial" type="number" value="0" min="0">
+                    <label class="lbl">Expiry days <span class="muted">(0 = never)</span></label>
+                    <input class="input" id="genDays" type="number" value="30" min="0" max="3650">
+                    <label class="lbl">Assign user <span class="muted">(optional)</span></label>
+                    <input class="input" id="genUser" placeholder="customer@email.com" maxlength="60">
+                    <div class="toggle-row">
+                        <label class="lbl" for="genHmac">HMAC signature</label>
+                        <label class="switch"><input type="checkbox" id="genHmac" checked><span></span></label>
+                    </div>
+                    <label class="lbl">Secret key</label>
+                    <div class="secret-wrap">
+                        <input class="input" id="genSecret" type="password" autocomplete="off">
+                        <button class="btn btn-sm eye-btn" id="genSecretEye" type="button">👁</button>
+                    </div>
+                    <button class="btn btn-primary btn-block" id="genBtn">⚡ Generate Keys</button>
+                </div>
+                <div class="card panel-card">
+                    <h3 class="card-title">Output</h3>
+                    <div class="gen-actions">
+                        <button class="btn btn-sm" id="copyAllBtn">⇱ Copy all</button>
+                        <button class="btn btn-sm" id="addAllBtn">⇥ Add all to DB</button>
+                        <label class="switch lbl-inline">Auto-add<input type="checkbox" id="autoAdd"><span></span></label>
+                    </div>
+                    <div id="genOutput" class="gen-output muted">Generate keys to preview here…</div>
+                </div>
+            </div>
+        </section>
+
+        <section id="view-logs" class="view">
+            <header class="view-head">
+                <div><h2>Logs</h2><p class="muted">Activity trail of this panel</p></div>
+                <div class="head-actions">
+                    <input class="input" id="logSearch" placeholder="Filter...">
+                    <button class="btn btn-danger" id="clearLogsBtn">Clear</button>
+                </div>
+            </header>
+            <div class="card panel-card">
+                <div id="logList" class="log-list muted">No logs</div>
+            </div>
+        </section>
+
+        <section id="view-settings" class="view">
+            <header class="view-head">
+                <div><h2>Settings</h2><p class="muted">Security, sync &amp; data</p></div>
+            </header>
+
+            <div class="card panel-card">
+                <h3 class="card-title">🔐 Panel Security</h3>
+                <div class="set-grid">
+                    <div>
+                        <label class="lbl">Change admin password</label>
+                        <div class="row"><input class="input" id="setPass1" type="password" placeholder="New password"><input class="input" id="setPass2" type="password" placeholder="Confirm"></div>
+                        <button class="btn btn-sm" id="setPassBtn">Update password</button>
+                    </div>
+                    <div>
+                        <label class="lbl">Auto-lock after (minutes, 0 = off)</label>
+                        <input class="input" id="setLockMs" type="number" min="0" value="15">
+                        <button class="btn btn-sm" id="setLockBtn">Save</button>
                     </div>
                 </div>
-                <div class="form-group">
-                    <label>Status</label>
-                    <select id="customStatus">
-                        <option value="active">Active</option>
-                        <option value="revoked">Revoked</option>
-                    </select>
+                <div class="lbl" style="margin-top:14px">HMAC secret</div>
+                <div class="row">
+                    <input class="input" id="setSecret" type="password" autocomplete="off">
+                    <button class="btn btn-sm eye-btn" id="setSecretEye" type="button">👁</button>
+                    <button class="btn btn-sm" id="randSecretBtn">Random</button>
+                    <button class="btn btn-sm" id="resetSecretBtn">Reset</button>
+                </div>
+                <p class="hint">Warning: changing the secret invalidates all existing signed keys. Loader expects this exact secret.</p>
+            </div>
+
+            <div class="card panel-card">
+                <h3 class="card-title">☁ GitHub Auto-Sync</h3>
+                <p class="hint">Loader fetches: <code id="loaderUrl">…</code></p>
+                <label class="lbl">Fine-grained PAT (Contents: R/W)</label>
+                <div class="row">
+                    <input class="input" id="ghToken" type="password" placeholder="github_pat_..." autocomplete="off">
+                    <button class="btn btn-sm eye-btn" id="ghTokenEye" type="button">👁</button>
+                </div>
+                <div class="row">
+                    <button class="btn btn-sm btn-primary" id="saveTokenBtn">Save Token</button>
+                    <button class="btn btn-sm" id="pushNowBtn">⇪ Push Now</button>
+                    <button class="btn btn-sm" id="ghTestBtn">Test Token</button>
+                </div>
+                <p class="hint" id="ghStatus">Not configured</p>
+            </div>
+
+            <div class="card panel-card">
+                <h3 class="card-title">🗄 Data</h3>
+                <div class="row">
+                    <button class="btn btn-sm" id="exportBtn">⇩ Export JSON</button>
+                    <button class="btn btn-sm" id="exportTxtBtn">⇩ Export TXT</button>
+                    <button class="btn btn-sm" id="importTrigger">⇧ Import JSON</button>
+                    <input type="file" id="importFile" accept=".json,application/json" class="hidden">
                 </div>
             </div>
-            <div class="modal-footer">
-                <button class="btn btn-ghost modal-close-btn">Cancel</button>
-                <button id="saveCustomBtn" class="btn btn-primary">Add Key</button>
+
+            <div class="card panel-card danger">
+                <h3 class="card-title">⚠ Danger Zone</h3>
+                <div class="row">
+                    <button class="btn btn-danger" id="wipeKeysBtn">Wipe all keys</button>
+                    <button class="btn btn-danger" id="resetAllBtn">Full reset</button>
+                </div>
             </div>
+
+            <div class="card panel-card">
+                <h3 class="card-title">ℹ About</h3>
+                <p class="muted" style="line-height:1.6">
+                    KeyMaster v2.0 — advanced license management.<br>
+                    Client-side security: this panel locks UI behind a password. For hard security, validation happens in your app against <code>db.json</code> pushed by this panel.<br>
+                    Secret default: <code>MyModLoaderSecretKey2024</code> — keep it identical in your loader.
+                </p>
+            </div>
+        </section>
+
+    </main>
+</div>
+
+<!-- Generic modal -->
+<div id="modal" class="modal hidden">
+    <div class="modal-box card">
+        <div class="modal-head"><h3 id="modalTitle">Edit</h3><button class="btn-modal-x" id="modalX">✕</button></div>
+        <div id="modalBody" class="modal-body"></div>
+        <div class="modal-foot">
+            <button class="btn" id="modalCancel">Cancel</button>
+            <button class="btn btn-primary" id="modalOk">Save</button>
         </div>
     </div>
+</div>
 
-    <div id="editModal" class="modal">
-        <div class="modal-backdrop"></div>
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Edit Key</h3>
-                <button class="modal-close">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label>Key</label>
-                    <input type="text" id="editKeyInput" readonly>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>User</label>
-                        <input type="text" id="editUser" placeholder="username">
-                    </div>
-                    <div class="form-group">
-                        <label>Status</label>
-                        <select id="editStatus">
-                            <option value="active">Active</option>
-                            <option value="revoked">Revoked</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>Expiry</label>
-                    <select id="editExpiry">
-                        <option value="0">No expiry</option>
-                        <option value="7">7 days</option>
-                        <option value="30">30 days</option>
-                        <option value="90">90 days</option>
-                        <option value="180">6 months</option>
-                        <option value="365">1 year</option>
-                    </select>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-ghost modal-close-btn">Cancel</button>
-                <button id="saveEditBtn" class="btn btn-primary">Save Changes</button>
-            </div>
+<div id="confirm" class="modal hidden">
+    <div class="modal-box card modal-sm">
+        <div class="modal-head"><h3 id="cfTitle">Are you sure?</h3></div>
+        <div id="cfBody" class="modal-body"></div>
+        <div class="modal-foot">
+            <button class="btn" id="cfCancel">Cancel</button>
+            <button class="btn btn-danger" id="cfOk">Yes</button>
         </div>
     </div>
+</div>
 
-    <!-- TOAST -->
-    <div id="toast" class="toast"></div>
-
-    <script src="script.js"></script>
+<script src="script.js"></script>
 </body>
 </html>
