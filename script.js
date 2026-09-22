@@ -14,6 +14,7 @@ function loadDB() {
 function saveDB() {
     localStorage.setItem('keygen_db', JSON.stringify(db));
     updateStats();
+    scheduleGitHubPush();
 }
 
 function generateId() {
@@ -64,6 +65,114 @@ function showToast(msg, type) {
     t.className = 'toast show ' + (type || 'info');
     clearTimeout(t._hide);
     t._hide = setTimeout(() => { t.className = 'toast'; }, 3000);
+}
+
+// ===== GITHUB AUTO-SYNC =====
+
+function getGhToken() { return localStorage.getItem('keygen_gh_token') || ''; }
+function saveGhToken(v) { localStorage.setItem('keygen_gh_token', v); }
+
+function ghRepo() {
+    let owner = 'kbinaana', repo = 'keygen-panel';
+    try {
+        const host = location.hostname.split('.')[0];
+        if (host) owner = host;
+        const seg = location.pathname.replace(/^\/+|\/+$/g, '').split('/');
+        if (seg.length && seg[0]) repo = seg[0];
+    } catch (e) {}
+    return { owner: owner, repo: repo };
+}
+
+function setPushStatus(msg, ok) {
+    const el = document.getElementById('ghStatus');
+    if (el) {
+        el.textContent = msg;
+        el.style.color = ok === true ? '#22c55e' : ok === false ? '#ef4444' : 'var(--text-muted)';
+    }
+}
+
+let pushTimer = null;
+function scheduleGitHubPush() {
+    const token = getGhToken();
+    if (!token) return;
+    clearTimeout(pushTimer);
+    setPushStatus('Sync queued...');
+    pushTimer = setTimeout(pushDbToGithub, 4000);
+}
+
+function b64EncodeUnicode(str) {
+    return btoa(unescape(encodeURIComponent(str)));
+}
+
+async function pushDbToGithub() {
+    const token = getGhToken();
+    if (!token) {
+        setPushStatus('Token not set');
+        return;
+    }
+    const repo = ghRepo();
+    const content = b64EncodeUnicode(JSON.stringify(db, null, 2));
+    let body = { message: 'Auto sync db.json', content: content };
+    try {
+        const getRes = await fetch('https://api.github.com/repos/' + repo.owner + '/' + repo.repo + '/contents/db.json', {
+            headers: { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github+json' }
+        });
+        if (getRes.ok) {
+            const meta = await getRes.json();
+            body.sha = meta.sha;
+        }
+    } catch (e) {}
+    try {
+        const putRes = await fetch('https://api.github.com/repos/' + repo.owner + '/' + repo.repo + '/contents/db.json', {
+            method: 'PUT',
+            headers: { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        if (putRes.ok) {
+            const d = new Date();
+            setPushStatus('Synced ' + db.length + ' keys to db.json (' + d.toLocaleTimeString() + ')', true);
+        } else {
+            let reason = 'HTTP ' + putRes.status;
+            try { const j = await putRes.json(); if (j && j.message) reason = j.message; } catch (e2) {}
+            setPushStatus('GitHub failed: ' + reason, false);
+        }
+    } catch (e) {
+        setPushStatus('GitHub error: ' + e.message, false);
+    }
+}
+
+function injectGitHubSettings() {
+    const settingsTab = document.getElementById('settingsTab');
+    if (!settingsTab || document.getElementById('gitHubSyncPanel')) return;
+    const wrapper = document.createElement('div');
+    wrapper.className = 'panel';
+    wrapper.id = 'gitHubSyncPanel';
+    const repo = ghRepo();
+    wrapper.innerHTML =
+        '<div class="panel-header"><h2>🔗 GitHub Auto-Sync</h2>' +
+        '<p>Har revoke/delete ke baad <b>db.json</b> automatically is repo par push hota hai. Loader use poll karke key-off kar dega.</p></div>' +
+        '<div class="panel-body">' +
+        '<div class="form-group"><label>GitHub Token (PAT)</label>' +
+        '<input type="password" id="ghTokenInput" placeholder="ghp_xxxxxxxxxxxx">' +
+        '<p class="form-hint">Fine-grained PAT: Contents → Read &amp; Write, repo <b>' + repo.owner + '/' + repo.repo + '</b>. GitHub → Settings → Developer settings → Fine-grained tokens.</p></div>' +
+        '<div class="btn-row">' +
+        '<button id="saveGhTokenBtn" class="btn btn-primary">Save Token</button>' +
+        '<button id="pushNowBtn" class="btn">Push Now</button>' +
+        '</div>' +
+        '<p id="ghStatus" style="margin-top:8px;font-size:13px">Not configured</p>' +
+        '<p class="form-hint">Loader URL: https://raw.githubusercontent.com/' + repo.owner + '/' + repo.repo + '/main/db.json</p>' +
+        '</div></div>';
+    settingsTab.appendChild(wrapper);
+
+    document.getElementById('ghTokenInput').value = getGhToken();
+    document.getElementById('saveGhTokenBtn').addEventListener('click', () => {
+        const val = document.getElementById('ghTokenInput').value.trim();
+        if (!val) return showToast('Enter token', 'error');
+        saveGhToken(val);
+        showToast('Token saved! db.json sync ho raha hai...', 'success');
+        pushDbToGithub();
+    });
+    document.getElementById('pushNowBtn').addEventListener('click', pushDbToGithub);
 }
 
 // ===== GENERATE =====
@@ -672,8 +781,12 @@ document.getElementById('phpServerUrl').addEventListener('change', () => {
 
 // ===== INIT =====
 
+injectGitHubSettings();
 loadDB();
 renderManageTable();
 updateStats();
 generateKeys();
 handleApiRequest();
+if (getGhToken()) {
+    setTimeout(pushDbToGithub, 1500);
+}
